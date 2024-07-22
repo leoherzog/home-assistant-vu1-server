@@ -1,0 +1,3 @@
+[submodule "VU-Server"]
+	path = VU-Server
+	url = https://github.com/SasaKaranovic/VU-Server
