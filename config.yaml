@@ -7,6 +7,7 @@ startup: application
 boot: auto
 uart: true
 usb: true
+ingress: true
 ports:
   5340/tcp: 5340
 options:
