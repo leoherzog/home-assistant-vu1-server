@@ -1,0 +1,12 @@
+# Home Assistant
+homeassistant
+
+# VU-Server submodule requirements
+tornado
+numpy
+pillow
+requests
+argparse
+pyyaml
+ruamel.yaml
+pyserial
