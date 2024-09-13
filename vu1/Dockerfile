@@ -8,7 +8,7 @@ RUN apk add --no-cache python3 py3-pip libusb
 WORKDIR /usr/src/app
 
 # Copy your application files
-COPY vu1_dial_ha/ ./vu1_dial_ha/
+COPY ha-vu1/ ./ha-vu1/
 COPY VU-Server/ ./VU-Server/
 COPY run.sh .
 COPY requirements.txt .
