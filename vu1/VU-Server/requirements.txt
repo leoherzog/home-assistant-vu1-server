@@ -1,9 +1,0 @@
-tornado
-numpy
-pillow
-requests
-argparse
-pyyaml
-ruamel.yaml
-pyserial
-pyinstaller

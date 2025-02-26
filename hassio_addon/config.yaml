@@ -1,0 +1,20 @@
+name: "VU-Server"
+slug: "vu_server"
+description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
+version: "0.1.0"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+  - i386
+startup: services
+boot: auto
+ingress: false
+options:
+  api_port: 5340
+schema:
+  api_port: int(1, 65535)
+ports:
+  "5340/tcp": 5340
+uart: true  # allow access to serial devices (VU1 hub)

@@ -1,0 +1,10 @@
+{
+  "domain": "vu1",
+  "name": "Home Assistant VU1",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/leoherzog/home-assistant-vu1",
+  "requirements": [],
+  "codeowners": ["@leoherzog"],
+  "iot_class": "local_polling"
+}
