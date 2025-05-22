@@ -1,5 +1,5 @@
 name: "VU-Server"
-slug: "vu_server"
+slug: "vu_server-addon"
 description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
 version: "dev"
 arch:
