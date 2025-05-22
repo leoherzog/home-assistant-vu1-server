@@ -1,7 +1,7 @@
 name: "VU-Server"
 slug: "vu_server"
 description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
-version: "0.1.0"
+version: "dev"
 arch:
   - aarch64
   - amd64
@@ -9,8 +9,6 @@ arch:
   - armhf
   - i386
 startup: services
-boot: auto
-ingress: false
 hassio_api: true
 options:
   api_port: 5340
