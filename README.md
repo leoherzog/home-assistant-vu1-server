@@ -1,46 +1,46 @@
-# VU1 Dynamic Analogue Dial
+# VU-Server Home Assistant Add-On
 
 ## What is this?
 
-This Home Assistant add-on allows you to integrate [VU1 Dynamic Analogue Dials](https://vudials.com/) into your smart home setup. VU1 Dials are physical, USB-connected VU meters with eInk screens that can display various sensor data from your Home Assistant instance. This add-on handles the communication between Home Assistant and the VU1 Dials, making it easy to visualize your data.
+This Home Assistant add-on runs the [VU-Server](https://github.com/streacom/vu-server) to control [VU1 Dynamic Analogue Dials](https://vudials.com/). VU1 Dials are physical, USB-connected VU meters with eInk screens that can be controlled via API calls. This add-on provides the VU-Server API within your Home Assistant environment.
 
 ### Features
 
-- 🔌 Auto-discovers VU1 Dials connected via USB
-- 📊 Creates devices and entities in Home Assistant for each connected dial
-- 🔢 Allows setting min/max values for each dial
-- 🔄 Automatically updates dial positions based on linked sensor values
+- 🔌 Runs VU-Server within Home Assistant as an add-on
+- 🌐 Provides HTTP API for controlling VU1 dials
+- ⚙️ Configurable API port
+- 🔄 Auto-starts with Home Assistant
 
 ## Installation
 
-### HACS Installation
+### Add Repository to Home Assistant
 
-1. Ensure you have [HACS](https://hacs.xyz/) installed in your Home Assistant instance.
-2. In the HACS panel, click on "Integrations".
-3. Click the "+" button in the bottom right corner.
-4. Search for "VU1 Dynamic Analogue Dial" and select it.
-5. Click "Install" and wait for the process to complete.
-6. Restart Home Assistant.
+1. In Home Assistant, navigate to **Supervisor** > **Add-on Store**
+2. Click the three dots menu in the top right and select **Repositories**
+3. Add this repository URL: `https://github.com/leoherzog/home-assistant-vu1-server`
+4. Click **Add**
+
+### Install the Add-on
+
+1. Find "VU-Server" in your add-on store
+2. Click **Install**
+3. Configure the API port if needed (default: 5340)
+4. Start the add-on
 
 ### Configuration
 
-After installation:
+The add-on supports the following configuration options:
 
-1. Go to "Configuration" > "Integrations" in Home Assistant.
-2. Click the "+" button to add a new integration.
-3. Search for "VU1 Dynamic Analogue Dial" and select it.
-4. Follow the prompts to complete the setup.
+- `api_port`: Port number for the VU-Server API (default: 5340)
 
 ## Usage
 
-Once installed and configured:
+Once the add-on is running:
 
-1. The add-on will automatically discover any connected VU1 Dials.
-2. Each dial will appear as a device in Home Assistant.
-3. For each dial, you can:
-   - Set a minimum and maximum value
-   - Link it to any numeric sensor in your Home Assistant instance
-   - The dial will automatically update to reflect the current sensor value
+1. The VU-Server API will be available at `http://hassio.local:5340` (or your configured port)
+2. Connect VU1 dials via USB to your Home Assistant device
+3. Use the VU-Server API to control the dials
+4. Consider using a separate HACS custom component to integrate with Home Assistant entities
 
 ## Troubleshooting
 

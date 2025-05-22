@@ -11,10 +11,15 @@ arch:
 startup: services
 boot: auto
 ingress: false
+hassio_api: true
 options:
   api_port: 5340
 schema:
   api_port: int(1, 65535)
 ports:
   "5340/tcp": 5340
-uart: true  # allow access to serial devices (VU1 hub)
+uart: true
+usb: true
+devices:
+  - /dev/ttyACM0
+  - /dev/ttyUSB0

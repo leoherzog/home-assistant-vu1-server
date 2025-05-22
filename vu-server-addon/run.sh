@@ -11,5 +11,8 @@ fi
 echo "Starting VU-Server on port ${PORT}..."
 cd /opt/vu-server || exit 1
 
-# Launch VU-Server (listens for API calls on the specified port)
-exec python3 server.py --port "${PORT}"
+# Update the config.yaml with the configured port
+sed -i "s/port: 5340/port: ${PORT}/" config.yaml
+
+# Launch VU-Server (port is configured via config.yaml)
+exec python3 server.py --logging info
