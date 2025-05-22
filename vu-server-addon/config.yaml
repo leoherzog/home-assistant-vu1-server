@@ -13,7 +13,7 @@ hassio_api: true
 options:
   api_port: 5340
 schema:
-  api_port: int(1, 65535)
+  api_port: port
 ports:
   "5340/tcp": 5340
 uart: true
