@@ -1,11 +1,21 @@
 ARG BUILD_FROM
+FROM alpine:latest AS vu-server-source
+
+# Install git for cloning
+RUN apk add --no-cache git
+
+# Clone VU-Server at specific commit/tag
+RUN git clone https://github.com/SasaKaranovic/VU-Server.git /opt/vu-server && \
+    cd /opt/vu-server && \
+    git checkout v20240329
+
 FROM $BUILD_FROM
 
 # Install Python (for running VU-Server) and any needed libs
 RUN apk add --no-cache python3 py3-pip
 
-# Copy VU-Server source code into the image
-COPY ../vu-server /opt/vu-server
+# Copy VU-Server source code from build stage
+COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 
 # Install VU-Server Python dependencies
 RUN pip3 install -r /opt/vu-server/requirements.txt
