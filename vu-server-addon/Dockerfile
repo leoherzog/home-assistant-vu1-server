@@ -5,7 +5,7 @@ FROM $BUILD_FROM
 RUN apk add --no-cache python3 py3-pip
 
 # Copy VU-Server source code into the image
-COPY vu-server /opt/vu-server
+COPY ../vu-server /opt/vu-server
 
 # Install VU-Server Python dependencies
 RUN pip3 install -r /opt/vu-server/requirements.txt
