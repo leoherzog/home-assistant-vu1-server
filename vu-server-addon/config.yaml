@@ -2,6 +2,7 @@ name: "VU-Server"
 slug: "vu_server-addon"
 description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
 version: "dev"
+url: "https://github.com/leoherzog/home-assistant-vu1-server"
 arch:
   - aarch64
   - amd64
@@ -10,12 +11,15 @@ arch:
   - i386
 startup: services
 hassio_api: true
+init: false
 options:
   api_port: 5340
 schema:
-  api_port: port
+  api_port: "port(5340,65535)"
 ports:
   "5340/tcp": 5340
+ports_description:
+  "5340/tcp": "VU-Server API port"
 uart: true
 usb: true
 devices:

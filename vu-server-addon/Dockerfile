@@ -11,8 +11,11 @@ RUN git clone https://github.com/SasaKaranovic/VU-Server.git /opt/vu-server && \
 
 FROM $BUILD_FROM
 
-# Install Python (for running VU-Server) and any needed libs
-RUN apk add --no-cache python3 py3-pip
+# Install Python, bashio, and any needed libs
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    bashio
 
 # Copy VU-Server source code from build stage
 COPY --from=vu-server-source /opt/vu-server /opt/vu-server
@@ -21,11 +24,10 @@ COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
-# Copy and set up the run script
-COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+# Create s6-overlay service directory and copy the run script
+RUN mkdir -p /etc/services.d/vu-server
+COPY run.sh /etc/services.d/vu-server/run
+RUN chmod a+x /etc/services.d/vu-server/run
 
 # Expose VU-Server API port
 EXPOSE 5340
-
-CMD [ "/run.sh" ]
