@@ -17,8 +17,9 @@ RUN apk add --no-cache python3 py3-pip
 # Copy VU-Server source code from build stage
 COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 
-# Install VU-Server Python dependencies
-RUN pip3 install -r /opt/vu-server/requirements.txt
+# Create virtual environment and install VU-Server Python dependencies
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
 # Copy and set up the run script
 COPY run.sh /run.sh

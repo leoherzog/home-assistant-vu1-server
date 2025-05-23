@@ -15,4 +15,4 @@ cd /opt/vu-server || exit 1
 sed -i "s/port: 5340/port: ${PORT}/" config.yaml
 
 # Launch VU-Server (port is configured via config.yaml)
-exec python3 server.py --logging info
+exec /opt/venv/bin/python server.py --logging info
