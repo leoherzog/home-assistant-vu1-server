@@ -11,10 +11,13 @@ RUN git clone https://github.com/SasaKaranovic/VU-Server.git /opt/vu-server && \
 
 FROM $BUILD_FROM
 
-# Install Python and any needed libs
+# Install Python and other dependencies
 RUN apk add --no-cache \
     python3 \
-    py3-pip
+    py3-pip \
+    gcc \
+    musl-dev \
+    python3-dev
 
 # Install bashio for Home Assistant integration
 RUN pip3 install bashio
