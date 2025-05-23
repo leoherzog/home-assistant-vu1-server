@@ -15,7 +15,7 @@ init: false
 options:
   api_port: 5340
 schema:
-  api_port: "port(5340,65535)"
+  api_port: port
 ports:
   "5340/tcp": 5340
 ports_description:
