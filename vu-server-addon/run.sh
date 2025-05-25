@@ -46,7 +46,7 @@ fi
 
 # Update the config.yaml with the configured port
 bashio::log.info "Configuring VU-Server to use port ${PORT}"
-if ! sed -i "s/port: [0-9]*/port: ${PORT}/" config.yaml; then
+if ! sed -i "/^server:/,/^[^[:space:]]/ s/port: [0-9]*/port: ${PORT}/" config.yaml; then
     bashio::log.error "Failed to update config.yaml"
     exit 1
 fi
@@ -65,7 +65,7 @@ done
 
 if [ -n "$HARDWARE_PORT" ]; then
     bashio::log.info "Setting hardware port to: $HARDWARE_PORT"
-    sed -i "s|port:.*|port: $HARDWARE_PORT|" config.yaml
+    sed -i "/^hardware:/,/^[^[:space:]]/ s|port:.*|port: $HARDWARE_PORT|" config.yaml
 else
     bashio::log.info "No hardware port found, leaving empty for auto-detection"
 fi
