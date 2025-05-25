@@ -51,6 +51,25 @@ if ! sed -i "s/port: [0-9]*/port: ${PORT}/" config.yaml; then
     exit 1
 fi
 
+# Configure hardware port to avoid auto-detection issues
+bashio::log.info "Configuring hardware port..."
+# Try to find the VU1 device - look for common USB serial devices
+HARDWARE_PORT=""
+for device in /dev/ttyACM* /dev/ttyUSB*; do
+    if [ -e "$device" ]; then
+        bashio::log.info "Found potential device: $device"
+        HARDWARE_PORT="$device"
+        break
+    fi
+done
+
+if [ -n "$HARDWARE_PORT" ]; then
+    bashio::log.info "Setting hardware port to: $HARDWARE_PORT"
+    sed -i "s|port:.*|port: $HARDWARE_PORT|" config.yaml
+else
+    bashio::log.info "No hardware port found, leaving empty for auto-detection"
+fi
+
 # Verify Python environment
 if [ ! -x "/opt/venv/bin/python" ]; then
     bashio::log.fatal "Python virtual environment not found"
