@@ -2,7 +2,7 @@
 
 ## What is this?
 
-This Home Assistant add-on runs the [VU-Server](https://github.com/streacom/vu-server) to control [VU1 Dynamic Analogue Dials](https://vudials.com/). VU1 Dials are physical, USB-connected VU meters with eInk screens that can be controlled via API calls. This add-on provides the VU-Server API within your Home Assistant environment.
+This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranovic/vu-server) server software to control Streacom [VU1 Dynamic Analogue Dials](https://vudials.com/). VU1 Dials are physical, USB-connected VU meters with eInk screens that can be controlled via API calls. This add-on provides the VU-Server API within your Home Assistant environment, but does not include a custom component for Home Assistant entities.
 
 ### Features
 
@@ -35,12 +35,7 @@ The add-on supports the following configuration options:
 
 ## Usage
 
-Once the add-on is running:
-
-1. The VU-Server API will be available at `http://hassio.local:5340` (or your configured port)
-2. Connect VU1 dials via USB to your Home Assistant device
-3. Use the VU-Server API to control the dials
-4. Consider using a separate HACS custom component to integrate with Home Assistant entities
+Once the add-on is running, the VU-Server API will be available at `http://hassio.local:5340` (or your configured port). The master key will be automatically generated and can be found in the add-on logs.
 
 ## Troubleshooting
 
@@ -52,7 +47,7 @@ Once the add-on is running:
 
 The MIT License (MIT)
 
-Copyright © 2024 Leo Herzog
+Copyright © 2025 Leo Herzog
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
