@@ -28,7 +28,7 @@ COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 
 # Create virtual environment and install dependencies
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir bashio && \
+    /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
 # Create s6-overlay service directory and copy the run script
