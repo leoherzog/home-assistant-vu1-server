@@ -23,14 +23,12 @@ RUN apk add --no-cache \
     cargo \
     rust
 
-# Install bashio for Home Assistant integration
-RUN pip3 install --no-cache-dir bashio
-
 # Copy VU-Server source code from build stage
 COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 
-# Create virtual environment and install VU-Server Python dependencies
+# Create virtual environment and install dependencies
 RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir bashio && \
     /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
 # Create s6-overlay service directory and copy the run script
