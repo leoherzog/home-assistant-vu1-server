@@ -1,7 +1,7 @@
 name: "VU-Server"
 slug: "vu-server-addon"
 description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
-version: "dev"
+version: "0.1.0"
 url: "https://github.com/leoherzog/home-assistant-vu1-server"
 arch:
   - aarch64
