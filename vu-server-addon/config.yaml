@@ -20,6 +20,8 @@ ports:
   "5340/tcp": 5340
 ports_description:
   "5340/tcp": "VU-Server API port"
+ingress: true
+ingress_port: 5340
 uart: true
 usb: true
 devices:

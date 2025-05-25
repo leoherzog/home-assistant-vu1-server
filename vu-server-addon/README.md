@@ -1,10 +1,13 @@
 # VU-Server Home Assistant Add-On
 
-Runs the Streacom VU1 Server within Home Assistant to control VU1 analogue dials.
+This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranovic/vu-server) server software to control Streacom [VU1 Dynamic Analogue Dials](https://vudials.com/). VU1 Dials are physical, USB-connected VU meters with eInk screens that can be controlled via API calls. This add-on provides the VU-Server API within your Home Assistant environment, but does not include a custom component for Home Assistant entities.
 
-## About
+### Features
 
-This add-on packages the VU-Server software as a Home Assistant add-on, allowing you to control VU1 Dynamic Analogue Dials from within your Home Assistant environment.
+- 🔌 Runs VU-Server within Home Assistant as an add-on
+- 🌐 Provides HTTP API for controlling VU1 dials
+- ⚙️ Configurable API port
+- 🔄 Auto-starts with Home Assistant
 
 ## Configuration
 
@@ -24,6 +27,12 @@ api_port: 5340
 2. Install and start this add-on
 3. The VU-Server API will be available at `http://hassio.local:5340`
 4. Use the API or a compatible Home Assistant integration to control your dials
+
+## Troubleshooting
+
+- Ensure your VU1 Dials are properly connected via USB.
+- Check the add-on logs for any error messages.
+- If dials are not auto-discovered, try unplugging and reconnecting them.
 
 ## Support
 
