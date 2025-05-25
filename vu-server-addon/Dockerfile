@@ -17,10 +17,14 @@ RUN apk add --no-cache \
     py3-pip \
     gcc \
     musl-dev \
-    python3-dev
+    python3-dev \
+    libffi-dev \
+    openssl-dev \
+    cargo \
+    rust
 
 # Install bashio for Home Assistant integration
-RUN pip3 install bashio
+RUN pip3 install --no-cache-dir bashio
 
 # Copy VU-Server source code from build stage
 COPY --from=vu-server-source /opt/vu-server /opt/vu-server
