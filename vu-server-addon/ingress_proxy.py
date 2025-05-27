@@ -16,15 +16,19 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         logger.info(f"{self.address_string()} - {format % args}")
     
     def do_GET(self):
+        logger.info(f"Incoming GET request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_POST(self):
+        logger.info(f"Incoming POST request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_PUT(self):
+        logger.info(f"Incoming PUT request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_DELETE(self):
+        logger.info(f"Incoming DELETE request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def proxy_request(self):
@@ -164,6 +168,11 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             original_head_count = len(re.findall(r'<head[^>]*>', html, flags=re.IGNORECASE))
             html = re.sub(r'(<head[^>]*>)', r'\1\n    ' + base_tag, html, flags=re.IGNORECASE)
             logger.info(f"Found {original_head_count} head tags, added base tag")
+            
+            # Log a snippet of the modified HTML to verify the base tag was added
+            head_section = re.search(r'<head[^>]*>.*?</head>', html, flags=re.IGNORECASE | re.DOTALL)
+            if head_section:
+                logger.info(f"Head section after modification: {head_section.group()[:500]}...")
             
             return html.encode('utf-8')
         except Exception as e:
