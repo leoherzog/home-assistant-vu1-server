@@ -81,8 +81,22 @@ bashio::log.info "Launching VU-Server on port ${PORT}..."
 /opt/venv/bin/python server.py --logging info &
 VU_SERVER_PID=$!
 
-# Wait a moment for VU-Server to start
-sleep 2
+# Wait for VU-Server to be fully ready
+bashio::log.info "Waiting for VU-Server to be ready..."
+READY=false
+for i in {1..30}; do
+    if curl -s http://localhost:${PORT}/api/v0/status >/dev/null 2>&1; then
+        bashio::log.info "VU-Server is ready after ${i} seconds"
+        READY=true
+        break
+    fi
+    sleep 1
+done
+
+if [ "$READY" = false ]; then
+    bashio::log.error "VU-Server failed to start properly after 30 seconds"
+    exit 1
+fi
 
 # Launch Ingress proxy
 bashio::log.info "Launching Ingress proxy on port 8099..."
