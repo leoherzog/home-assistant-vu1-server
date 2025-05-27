@@ -74,13 +74,21 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(response.status)
                 logger.info(f"Response: {response.status} for {self.path}")
                 
-                # Copy response headers
+                # Get content first to determine final length
+                content = response.read()
+                
+                # Copy response headers, updating content-length and removing content-encoding
                 for header, value in response.headers.items():
-                    self.send_header(header, value)
+                    if header.lower() == 'content-length':
+                        self.send_header(header, str(len(content)))
+                    elif header.lower() == 'content-encoding':
+                        # Skip content-encoding since urllib already decompressed
+                        continue
+                    else:
+                        self.send_header(header, value)
                 self.end_headers()
                 
-                # Copy response body with path rewriting for HTML content
-                content = response.read()
+                # Process content for HTML rewriting
                 content_type = response.headers.get('Content-Type', '')
                 logger.info(f"Content-Type: '{content_type}', Content length: {len(content)}")
                 
@@ -88,6 +96,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                     # Rewrite HTML content to work with Ingress paths
                     logger.info(f"Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
                     content = self.rewrite_html_content(content, ingress_path)
+                    logger.info(f"Content length after rewriting: {len(content)}")
                 
                 self.wfile.write(content)
                 
@@ -160,7 +169,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             html = re.sub(r"'/api/v0/", "'api/v0/", html)
             
             # Add base tag to handle all relative paths (assets + API)
-            # Ensure ingress_path ends with / for proper relative path resolution
+            # For Home Assistant ingress, use the full ingress path
             base_path = ingress_path.rstrip('/') + '/' if ingress_path else '/'
             base_tag = f'<base href="{base_path}">'
             logger.info(f"Adding base tag: {base_tag}")
