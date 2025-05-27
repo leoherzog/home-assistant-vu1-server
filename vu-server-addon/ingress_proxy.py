@@ -6,196 +6,124 @@ import sys
 import logging
 import re
 
-# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - PROXY - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override to use our logger instead of stderr
         logger.info(f"{self.address_string()} - {format % args}")
     
     def do_GET(self):
-        logger.info(f"Incoming GET request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_POST(self):
-        logger.info(f"Incoming POST request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_PUT(self):
-        logger.info(f"Incoming PUT request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def do_DELETE(self):
-        logger.info(f"Incoming DELETE request: {self.path} from {self.client_address[0]}")
         self.proxy_request()
     
     def proxy_request(self):
-        # Restrict access to Home Assistant Ingress IP only
-        client_ip = self.client_address[0]
-        if client_ip != "172.30.32.2":
-            logger.warning(f"Access denied for IP: {client_ip}")
-            self.send_response(403)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(b'{"status": "fail", "message": "Access denied"}')
+        # Security check
+        if self.client_address[0] != "172.30.32.2":
+            logger.warning(f"Access denied for IP: {self.client_address[0]}")
+            self.send_error(403, "Access denied")
             return
         
         target_port = sys.argv[1] if len(sys.argv) > 1 else "5340"
         target_url = f"http://127.0.0.1:{target_port}{self.path}"
-        
-        # Get the Ingress path from headers for path rewriting
         ingress_path = self.headers.get('X-Ingress-Path', '')
         
-        logger.info(f"Proxying {self.command} {self.path} -> {target_url} (Ingress: {ingress_path})")
-        logger.info(f"Request headers: {dict(self.headers)}")
+        logger.info(f"Proxying {self.command} {self.path} -> {target_url}")
         
         try:
-            # Prepare request data
+            # Prepare request
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length) if content_length > 0 else None
-            
-            # Create request
             req = urllib.request.Request(target_url, data=post_data, method=self.command)
             
-            # Copy relevant headers, but skip cache headers for HTML to ensure fresh content
+            # Copy headers, skip cache headers for HTML to prevent 304s
+            is_html_request = self.path == '/' or self.path.endswith('.html')
+            skip_headers = ['host', 'content-length']
+            if is_html_request:
+                skip_headers.extend(['if-modified-since', 'if-none-match'])
+            
             for header, value in self.headers.items():
-                if header.lower() not in ['host', 'content-length']:
-                    # Skip cache-related headers for HTML requests to force fresh content
-                    if (self.path == '/' or self.path.endswith('.html')) and header.lower() in ['if-modified-since', 'if-none-match']:
-                        logger.info(f"Skipping cache header {header} for HTML request")
-                        continue
+                if header.lower() not in skip_headers:
                     req.add_header(header, value)
             
-            # Make request
+            # Make request and process response
             with urllib.request.urlopen(req) as response:
-                # Copy response status
-                self.send_response(response.status)
-                logger.info(f"Response: {response.status} for {self.path}")
-                
-                # Get content first and process it before sending headers
                 content = response.read()
                 content_type = response.headers.get('Content-Type', '')
-                logger.info(f"Content-Type: '{content_type}', Content length: {len(content)}")
                 
-                if content_type.startswith('text/html') and ingress_path:
-                    # Rewrite HTML content to work with Ingress paths
-                    logger.info(f"Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
-                    content = self.rewrite_html_content(content, ingress_path)
-                    logger.info(f"Content length after rewriting: {len(content)}")
+                # Rewrite content if needed
+                content = self.rewrite_content(content, content_type, ingress_path)
                 
-                # Copy response headers, updating content-length to match final content
-                for header, value in response.headers.items():
-                    if header.lower() == 'content-length':
-                        self.send_header(header, str(len(content)))
-                        logger.info(f"Set Content-Length to {len(content)} (was {value})")
-                    elif header.lower() == 'content-encoding':
-                        # Skip content-encoding since urllib already decompressed
-                        logger.info(f"Removing Content-Encoding: {value}")
-                        continue
-                    else:
-                        self.send_header(header, value)
+                # Send response
+                self.send_response(response.status)
+                self.copy_headers(response.headers, len(content))
                 self.end_headers()
-                
                 self.wfile.write(content)
                 
         except urllib.error.HTTPError as e:
-            # For HTML requests, we want fresh content, so treat 304 as an error and retry without cache headers
-            if e.code == 304 and (self.path == '/' or self.path.endswith('.html')):
-                logger.info(f"Got 304 for HTML {self.path}, retrying without cache headers")
-                try:
-                    # Retry without cache headers
-                    req_fresh = urllib.request.Request(target_url, data=post_data, method=self.command)
-                    for header, value in self.headers.items():
-                        if header.lower() not in ['host', 'content-length', 'if-modified-since', 'if-none-match']:
-                            req_fresh.add_header(header, value)
-                    
-                    with urllib.request.urlopen(req_fresh) as response:
-                        self.send_response(response.status)
-                        logger.info(f"Fresh response: {response.status} for {self.path}")
-                        
-                        # Get content first and process it before sending headers
-                        content = response.read()
-                        content_type = response.headers.get('Content-Type', '')
-                        logger.info(f"Retry - Content-Type: '{content_type}', Content length: {len(content)}")
-                        
-                        if content_type.startswith('text/html') and ingress_path:
-                            logger.info(f"Retry - Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
-                            content = self.rewrite_html_content(content, ingress_path)
-                            logger.info(f"Retry - Content length after rewriting: {len(content)}")
-                        
-                        # Copy response headers, updating content-length to match final content
-                        for header, value in response.headers.items():
-                            if header.lower() == 'content-length':
-                                self.send_header(header, str(len(content)))
-                            elif header.lower() == 'content-encoding':
-                                # Skip content-encoding since urllib already decompressed
-                                continue
-                            else:
-                                self.send_header(header, value)
-                        self.end_headers()
-                        
-                        self.wfile.write(content)
-                        return
-                except Exception as retry_e:
-                    logger.error(f"Retry failed for {self.path}: {retry_e}")
-            
-            # Handle other 304s or errors normally
+            logger.error(f"HTTP Error {e.code} for {self.path}: {e.reason}")
             if e.code == 304:
-                logger.info(f"304 Not Modified for {self.path}")
                 self.send_response(304)
                 for header, value in e.headers.items():
                     self.send_header(header, value)
                 self.end_headers()
             else:
-                logger.error(f"HTTP Error {e.code} for {self.path}: {e.reason}")
-                self.send_response(e.code)
-                self.send_header('Content-Type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(f"HTTP Error {e.code}: {e.reason}".encode())
-        except urllib.error.URLError as e:
-            logger.error(f"URL Error for {self.path}: {e.reason}")
-            self.send_response(502)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(f"Connection Error: {e.reason}".encode())
+                self.send_error(e.code, f"HTTP Error: {e.reason}")
         except Exception as e:
             logger.error(f"Proxy Error for {self.path}: {str(e)}")
-            self.send_response(502)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(f"Proxy Error: {str(e)}".encode())
+            self.send_error(502, f"Proxy Error: {str(e)}")
+    
+    def rewrite_content(self, content, content_type, ingress_path):
+        """Rewrite content based on type"""
+        if content_type.startswith('text/html') and ingress_path:
+            return self.rewrite_html_content(content, ingress_path)
+        elif 'javascript' in content_type:
+            return self.rewrite_js_content(content)
+        return content
     
     def rewrite_html_content(self, content, ingress_path):
-        """Rewrite HTML content to work properly with Home Assistant Ingress"""
+        """Add base tag and fix API paths in HTML"""
         try:
             html = content.decode('utf-8')
             
-            # Convert absolute API paths to relative so <base> tag will handle them
-            # Change /api/v0/ to api/v0/ (relative)
-            html = re.sub(r'"/api/v0/', '"api/v0/', html)
-            html = re.sub(r"'/api/v0/", "'api/v0/", html)
+            # Convert absolute API paths to relative
+            html = re.sub(r'["\']\/api\/v0\/', lambda m: m.group(0)[0] + 'api/v0/', html)
             
-            # Add base tag to handle all relative paths (assets + API)
-            # For Home Assistant ingress, use the full ingress path
-            base_path = ingress_path.rstrip('/') + '/' if ingress_path else '/'
-            base_tag = f'<base href="{base_path}">'
-            logger.info(f"Adding base tag: {base_tag}")
-            
-            original_head_count = len(re.findall(r'<head[^>]*>', html, flags=re.IGNORECASE))
-            html = re.sub(r'(<head[^>]*>)', r'\1\n    ' + base_tag, html, flags=re.IGNORECASE)
-            logger.info(f"Found {original_head_count} head tags, added base tag")
-            
-            # Log a snippet of the modified HTML to verify the base tag was added
-            head_section = re.search(r'<head[^>]*>.*?</head>', html, flags=re.IGNORECASE | re.DOTALL)
-            if head_section:
-                logger.info(f"Head section after modification: {head_section.group()[:500]}...")
+            # Add base tag
+            base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
+            html = re.sub(r'(<head[^>]*>)', f'\\1\n    {base_tag}', html, flags=re.IGNORECASE)
             
             return html.encode('utf-8')
         except Exception as e:
-            logger.error(f"Error rewriting HTML content: {e}")
+            logger.error(f"Error rewriting HTML: {e}")
             return content
+    
+    def rewrite_js_content(self, content):
+        """Fix API paths in JavaScript"""
+        try:
+            js = content.decode('utf-8')
+            # Convert absolute API paths to relative
+            js = re.sub(r'["\']\/api\/v0\/', lambda m: m.group(0)[0] + 'api/v0/', js)
+            return js.encode('utf-8')
+        except Exception as e:
+            logger.error(f"Error rewriting JavaScript: {e}")
+            return content
+    
+    def copy_headers(self, response_headers, content_length):
+        """Copy response headers, updating content-length and removing content-encoding"""
+        for header, value in response_headers.items():
+            if header.lower() == 'content-length':
+                self.send_header(header, str(content_length))
+            elif header.lower() != 'content-encoding':  # Skip content-encoding
+                self.send_header(header, value)
 
 if __name__ == "__main__":
     PORT = 8099
