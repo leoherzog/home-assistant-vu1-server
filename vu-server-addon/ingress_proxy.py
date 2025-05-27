@@ -81,11 +81,20 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(content)
                 
         except urllib.error.HTTPError as e:
-            logger.error(f"HTTP Error {e.code} for {self.path}: {e.reason}")
-            self.send_response(e.code)
-            self.send_header('Content-Type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(f"HTTP Error {e.code}: {e.reason}".encode())
+            # Handle 304 Not Modified as success, not an error
+            if e.code == 304:
+                logger.info(f"304 Not Modified for {self.path}")
+                self.send_response(304)
+                # Copy headers from the 304 response
+                for header, value in e.headers.items():
+                    self.send_header(header, value)
+                self.end_headers()
+            else:
+                logger.error(f"HTTP Error {e.code} for {self.path}: {e.reason}")
+                self.send_response(e.code)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(f"HTTP Error {e.code}: {e.reason}".encode())
         except urllib.error.URLError as e:
             logger.error(f"URL Error for {self.path}: {e.reason}")
             self.send_response(502)
@@ -110,7 +119,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             html = re.sub(r"'/api/v0/", "'api/v0/", html)
             
             # Add base tag to handle all relative paths (assets + API)
-            base_tag = f'<base href="{ingress_path}/">'
+            # Ensure ingress_path ends with / for proper relative path resolution
+            base_path = ingress_path.rstrip('/') + '/' if ingress_path else '/'
+            base_tag = f'<base href="{base_path}">'
             html = re.sub(r'(<head[^>]*>)', r'\1\n    ' + base_tag, html, flags=re.IGNORECASE)
             
             return html.encode('utf-8')
