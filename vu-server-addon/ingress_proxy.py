@@ -4,6 +4,7 @@ import socketserver
 import urllib.request
 import sys
 import logging
+import re
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - PROXY - %(levelname)s - %(message)s')
@@ -27,10 +28,23 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self.proxy_request()
     
     def proxy_request(self):
+        # Restrict access to Home Assistant Ingress IP only
+        client_ip = self.client_address[0]
+        if client_ip != "172.30.32.2":
+            logger.warning(f"Access denied for IP: {client_ip}")
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"status": "fail", "message": "Access denied"}')
+            return
+        
         target_port = sys.argv[1] if len(sys.argv) > 1 else "5340"
         target_url = f"http://127.0.0.1:{target_port}{self.path}"
         
-        logger.info(f"Proxying {self.command} {self.path} -> {target_url}")
+        # Get the Ingress path from headers for path rewriting
+        ingress_path = self.headers.get('X-Ingress-Path', '')
+        
+        logger.info(f"Proxying {self.command} {self.path} -> {target_url} (Ingress: {ingress_path})")
         
         try:
             # Prepare request data
@@ -56,8 +70,15 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                     self.send_header(header, value)
                 self.end_headers()
                 
-                # Copy response body
-                self.wfile.write(response.read())
+                # Copy response body with path rewriting for HTML content
+                content = response.read()
+                content_type = response.headers.get('Content-Type', '')
+                
+                if content_type.startswith('text/html') and ingress_path:
+                    # Rewrite HTML content to work with Ingress paths
+                    content = self.rewrite_html_content(content, ingress_path)
+                
+                self.wfile.write(content)
                 
         except urllib.error.HTTPError as e:
             logger.error(f"HTTP Error {e.code} for {self.path}: {e.reason}")
@@ -77,6 +98,25 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
             self.wfile.write(f"Proxy Error: {str(e)}".encode())
+    
+    def rewrite_html_content(self, content, ingress_path):
+        """Rewrite HTML content to work properly with Home Assistant Ingress"""
+        try:
+            html = content.decode('utf-8')
+            
+            # Convert absolute API paths to relative so <base> tag will handle them
+            # Change /api/v0/ to api/v0/ (relative)
+            html = re.sub(r'"/api/v0/', '"api/v0/', html)
+            html = re.sub(r"'/api/v0/", "'api/v0/", html)
+            
+            # Add base tag to handle all relative paths (assets + API)
+            base_tag = f'<base href="{ingress_path}/">'
+            html = re.sub(r'(<head[^>]*>)', r'\1\n    ' + base_tag, html, flags=re.IGNORECASE)
+            
+            return html.encode('utf-8')
+        except Exception as e:
+            logger.error(f"Error rewriting HTML content: {e}")
+            return content
 
 if __name__ == "__main__":
     PORT = 8099
