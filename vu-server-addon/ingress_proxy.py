@@ -45,6 +45,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         ingress_path = self.headers.get('X-Ingress-Path', '')
         
         logger.info(f"Proxying {self.command} {self.path} -> {target_url} (Ingress: {ingress_path})")
+        logger.info(f"Request headers: {dict(self.headers)}")
         
         try:
             # Prepare request data
@@ -54,9 +55,13 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             # Create request
             req = urllib.request.Request(target_url, data=post_data, method=self.command)
             
-            # Copy relevant headers
+            # Copy relevant headers, but skip cache headers for HTML to ensure fresh content
             for header, value in self.headers.items():
                 if header.lower() not in ['host', 'content-length']:
+                    # Skip cache-related headers for HTML requests to force fresh content
+                    if (self.path == '/' or self.path.endswith('.html')) and header.lower() in ['if-modified-since', 'if-none-match']:
+                        logger.info(f"Skipping cache header {header} for HTML request")
+                        continue
                     req.add_header(header, value)
             
             # Make request
@@ -81,11 +86,39 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(content)
                 
         except urllib.error.HTTPError as e:
-            # Handle 304 Not Modified as success, not an error
+            # For HTML requests, we want fresh content, so treat 304 as an error and retry without cache headers
+            if e.code == 304 and (self.path == '/' or self.path.endswith('.html')):
+                logger.info(f"Got 304 for HTML {self.path}, retrying without cache headers")
+                try:
+                    # Retry without cache headers
+                    req_fresh = urllib.request.Request(target_url, data=post_data, method=self.command)
+                    for header, value in self.headers.items():
+                        if header.lower() not in ['host', 'content-length', 'if-modified-since', 'if-none-match']:
+                            req_fresh.add_header(header, value)
+                    
+                    with urllib.request.urlopen(req_fresh) as response:
+                        self.send_response(response.status)
+                        logger.info(f"Fresh response: {response.status} for {self.path}")
+                        
+                        for header, value in response.headers.items():
+                            self.send_header(header, value)
+                        self.end_headers()
+                        
+                        content = response.read()
+                        content_type = response.headers.get('Content-Type', '')
+                        
+                        if content_type.startswith('text/html') and ingress_path:
+                            content = self.rewrite_html_content(content, ingress_path)
+                        
+                        self.wfile.write(content)
+                        return
+                except Exception as retry_e:
+                    logger.error(f"Retry failed for {self.path}: {retry_e}")
+            
+            # Handle other 304s or errors normally
             if e.code == 304:
                 logger.info(f"304 Not Modified for {self.path}")
                 self.send_response(304)
-                # Copy headers from the 304 response
                 for header, value in e.headers.items():
                     self.send_header(header, value)
                 self.end_headers()
