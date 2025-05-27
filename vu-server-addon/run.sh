@@ -76,6 +76,27 @@ if [ ! -x "/opt/venv/bin/python" ]; then
     exit 1
 fi
 
-# Launch VU-Server (port is configured via config.yaml)
-bashio::log.info "Launching VU-Server..."
-exec /opt/venv/bin/python server.py --logging info
+# Launch VU-Server in background
+bashio::log.info "Launching VU-Server on port ${PORT}..."
+/opt/venv/bin/python server.py --logging info &
+VU_SERVER_PID=$!
+
+# Wait a moment for VU-Server to start
+sleep 2
+
+# Launch Ingress proxy
+bashio::log.info "Launching Ingress proxy on port 8099..."
+python3 /opt/ingress_proxy.py ${PORT} &
+PROXY_PID=$!
+
+# Enhanced cleanup function
+cleanup() {
+    bashio::log.info "Shutting down services..."
+    [ -n "$PROXY_PID" ] && kill $PROXY_PID 2>/dev/null
+    [ -n "$VU_SERVER_PID" ] && kill $VU_SERVER_PID 2>/dev/null
+    wait
+}
+trap cleanup SIGTERM SIGINT
+
+# Wait for either process to exit
+wait

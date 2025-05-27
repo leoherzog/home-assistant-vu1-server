@@ -31,9 +31,10 @@ RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
-# Create s6-overlay service directory and copy the run script
+# Create s6-overlay service directory and copy files
 RUN mkdir -p /etc/services.d/vu-server
 COPY run.sh /etc/services.d/vu-server/run
+COPY ingress_proxy.py /opt/ingress_proxy.py
 RUN chmod a+x /etc/services.d/vu-server/run
 
 # Expose VU-Server API port
