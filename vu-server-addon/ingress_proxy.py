@@ -74,21 +74,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(response.status)
                 logger.info(f"Response: {response.status} for {self.path}")
                 
-                # Get content first to determine final length
+                # Get content first and process it before sending headers
                 content = response.read()
-                
-                # Copy response headers, updating content-length and removing content-encoding
-                for header, value in response.headers.items():
-                    if header.lower() == 'content-length':
-                        self.send_header(header, str(len(content)))
-                    elif header.lower() == 'content-encoding':
-                        # Skip content-encoding since urllib already decompressed
-                        continue
-                    else:
-                        self.send_header(header, value)
-                self.end_headers()
-                
-                # Process content for HTML rewriting
                 content_type = response.headers.get('Content-Type', '')
                 logger.info(f"Content-Type: '{content_type}', Content length: {len(content)}")
                 
@@ -97,6 +84,19 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                     logger.info(f"Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
                     content = self.rewrite_html_content(content, ingress_path)
                     logger.info(f"Content length after rewriting: {len(content)}")
+                
+                # Copy response headers, updating content-length to match final content
+                for header, value in response.headers.items():
+                    if header.lower() == 'content-length':
+                        self.send_header(header, str(len(content)))
+                        logger.info(f"Set Content-Length to {len(content)} (was {value})")
+                    elif header.lower() == 'content-encoding':
+                        # Skip content-encoding since urllib already decompressed
+                        logger.info(f"Removing Content-Encoding: {value}")
+                        continue
+                    else:
+                        self.send_header(header, value)
+                self.end_headers()
                 
                 self.wfile.write(content)
                 
@@ -115,10 +115,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                         self.send_response(response.status)
                         logger.info(f"Fresh response: {response.status} for {self.path}")
                         
-                        for header, value in response.headers.items():
-                            self.send_header(header, value)
-                        self.end_headers()
-                        
+                        # Get content first and process it before sending headers
                         content = response.read()
                         content_type = response.headers.get('Content-Type', '')
                         logger.info(f"Retry - Content-Type: '{content_type}', Content length: {len(content)}")
@@ -126,6 +123,18 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                         if content_type.startswith('text/html') and ingress_path:
                             logger.info(f"Retry - Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
                             content = self.rewrite_html_content(content, ingress_path)
+                            logger.info(f"Retry - Content length after rewriting: {len(content)}")
+                        
+                        # Copy response headers, updating content-length to match final content
+                        for header, value in response.headers.items():
+                            if header.lower() == 'content-length':
+                                self.send_header(header, str(len(content)))
+                            elif header.lower() == 'content-encoding':
+                                # Skip content-encoding since urllib already decompressed
+                                continue
+                            else:
+                                self.send_header(header, value)
+                        self.end_headers()
                         
                         self.wfile.write(content)
                         return
