@@ -81,6 +81,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 
                 if content_type.startswith('text/html') and ingress_path:
                     # Rewrite HTML content to work with Ingress paths
+                    logger.info(f"Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
                     content = self.rewrite_html_content(content, ingress_path)
                 
                 self.wfile.write(content)
@@ -155,7 +156,11 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             # Ensure ingress_path ends with / for proper relative path resolution
             base_path = ingress_path.rstrip('/') + '/' if ingress_path else '/'
             base_tag = f'<base href="{base_path}">'
+            logger.info(f"Adding base tag: {base_tag}")
+            
+            original_head_count = len(re.findall(r'<head[^>]*>', html, flags=re.IGNORECASE))
             html = re.sub(r'(<head[^>]*>)', r'\1\n    ' + base_tag, html, flags=re.IGNORECASE)
+            logger.info(f"Found {original_head_count} head tags, added base tag")
             
             return html.encode('utf-8')
         except Exception as e:
