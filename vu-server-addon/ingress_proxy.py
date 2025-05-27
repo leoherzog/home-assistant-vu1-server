@@ -78,6 +78,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 # Copy response body with path rewriting for HTML content
                 content = response.read()
                 content_type = response.headers.get('Content-Type', '')
+                logger.info(f"Content-Type: '{content_type}', Content length: {len(content)}")
                 
                 if content_type.startswith('text/html') and ingress_path:
                     # Rewrite HTML content to work with Ingress paths
@@ -107,8 +108,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                         
                         content = response.read()
                         content_type = response.headers.get('Content-Type', '')
+                        logger.info(f"Retry - Content-Type: '{content_type}', Content length: {len(content)}")
                         
                         if content_type.startswith('text/html') and ingress_path:
+                            logger.info(f"Retry - Rewriting HTML content for {self.path} with ingress path: {ingress_path}")
                             content = self.rewrite_html_content(content, ingress_path)
                         
                         self.wfile.write(content)
