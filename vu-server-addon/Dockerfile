@@ -20,6 +20,7 @@ RUN apk add --no-cache \
     python3-dev \
     libffi-dev \
     openssl-dev \
+    zlib-dev \
     cargo \
     rust
 
