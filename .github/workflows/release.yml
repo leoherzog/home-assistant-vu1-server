@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+env:
+  VERSION: ${{ github.event.release.tag_name }}
+
 jobs:
   build:
     name: Build and publish add-on
@@ -15,18 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Update version in config.yaml
-        run: |
-          # Extract version from release tag (remove 'v' prefix if present)
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          
-          # Update version in config.yaml
-          sed -i "s/version: \"dev\"/version: \"${VERSION}\"/" vu-server-addon/config.yaml
-          
-          # Verify the change
-          echo "Updated version to: $(grep -o 'version: "[^"]*"' vu-server-addon/config.yaml)"
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -37,4 +28,4 @@ jobs:
       - name: Build and push add-on
         uses: home-assistant/builder@master
         with:
-          args: --target vu-server-addon --all --version "${{ github.event.release.tag_name }}"
+          args: --target vu-server-addon --all --version "${VERSION#v}"
