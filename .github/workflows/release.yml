@@ -27,6 +27,4 @@ jobs:
       - name: Build and push add-on
         uses: home-assistant/builder@master
         with:
-          args: |
-            --target vu-server-addon
-            --all
+          args: --target vu-server-addon --all
