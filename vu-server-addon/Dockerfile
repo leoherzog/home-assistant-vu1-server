@@ -32,6 +32,9 @@ RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
     /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
 
+# Run make_version.py to replace template variables
+RUN cd /opt/vu-server && python3 make_version.py
+
 # Create s6-overlay service directory and copy files
 RUN mkdir -p /etc/services.d/vu-server
 COPY run.sh /etc/services.d/vu-server/run
