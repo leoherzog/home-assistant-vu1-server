@@ -85,7 +85,7 @@ VU_SERVER_PID=$!
 bashio::log.info "Waiting for VU-Server to be ready..."
 READY=false
 for i in {1..30}; do
-    if curl -s http://localhost:${PORT}/api/v0/status >/dev/null 2>&1; then
+    if curl -s http://localhost:${PORT}/api/v0/dial/list >/dev/null 2>&1; then
         bashio::log.info "VU-Server is ready after ${i} seconds"
         READY=true
         break
