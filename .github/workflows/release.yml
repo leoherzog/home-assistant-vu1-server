@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build and publish add-on
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update version in config.yaml
+        run: |
+          # Extract version from release tag (remove 'v' prefix if present)
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          
+          # Update version in config.yaml
+          sed -i "s/version: \"dev\"/version: \"${VERSION}\"/" vu-server-addon/config.yaml
+          
+          # Verify the change
+          echo "Updated version to: $(grep -o 'version: "[^"]*"' vu-server-addon/config.yaml)"
+
+      - name: Build and push add-on
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --target vu-server-addon
+            --all
