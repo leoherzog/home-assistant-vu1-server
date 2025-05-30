@@ -24,6 +24,13 @@ jobs:
           # Verify the change
           echo "Updated version to: $(grep -o 'version: "[^"]*"' vu-server-addon/config.yaml)"
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push add-on
         uses: home-assistant/builder@master
         with:

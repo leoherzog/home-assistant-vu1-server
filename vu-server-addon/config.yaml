@@ -4,6 +4,7 @@ description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
 panel_icon: "mdi:speedometer"
 version: "dev"
 url: "https://github.com/leoherzog/home-assistant-vu1-server"
+image: "ghcr.io/leoherzog/vu-server-addon-{arch}"
 arch:
   - aarch64
   - amd64
