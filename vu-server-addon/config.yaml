@@ -14,8 +14,6 @@ arch:
 startup: services
 hassio_api: true
 init: false
-options: {}
-schema: {}
 ports:
   "5340/tcp": null
 ports_description:
