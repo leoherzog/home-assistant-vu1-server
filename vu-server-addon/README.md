@@ -17,7 +17,7 @@ This add-on requires no configuration options. The VU-Server runs on a fixed int
 
 1. Connect your VU1 dials via USB to your Home Assistant device
 2. Install and start this add-on
-3. **Access the VU-Server Web UI by clicking "Open Web UI" in the add-on interface**
+3. Access the VU-Server Web UI by clicking "Open Web UI" in the add-on interface
 4. Use the web interface or API endpoints through Home Assistant's ingress proxy
 
 ### API Access
