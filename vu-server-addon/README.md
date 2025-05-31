@@ -5,28 +5,35 @@ This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranov
 ### Features
 
 - 🔌 Runs VU-Server within Home Assistant as an add-on
-- 🌐 Provides HTTP API for controlling VU1 dials
-- ⚙️ Configurable API port
+- 🌐 Provides HTTP API for controlling VU1 dials via Home Assistant ingress
+- 🔒 Secure ingress-only access by default
 - 🔄 Auto-starts with Home Assistant
 
 ## Configuration
 
-### Options
-
-- `api_port` (integer): Port number for the VU-Server API (default: 5340)
-
-### Example configuration:
-
-```yaml
-api_port: 5340
-```
+This add-on requires no configuration options. The VU-Server runs on a fixed internal port and is accessed through Home Assistant's ingress system.
 
 ## Usage
 
 1. Connect your VU1 dials via USB to your Home Assistant device
 2. Install and start this add-on
-3. The VU-Server API will be available at `http://hassio.local:5340`
-4. Use the API or a compatible Home Assistant integration to control your dials
+3. **Access the VU-Server Web UI by clicking "Open Web UI" in the add-on interface**
+4. Use the web interface or API endpoints through Home Assistant's ingress proxy
+
+### API Access
+
+All API endpoints are available through Home Assistant's ingress system. When accessing the API programmatically, use relative URLs from within Home Assistant or the full ingress URL path.
+
+## Advanced: Enabling External Access
+
+If you need direct external access to the VU-Server API:
+
+1. Go to **Settings** → **Add-ons** → **VU-Server**
+2. In the **Network** section (bottom of the page), map **Host Port** `5340` to **Container Port** `5340/tcp`
+3. Click **Save** and restart the add-on
+4. The VU-Server API will then be accessible at `http://your-ha-ip:5340`
+
+⚠️ **Security Warning**: Enabling external access bypasses Home Assistant's authentication. Only enable this if you understand the security implications.
 
 ## Troubleshooting
 

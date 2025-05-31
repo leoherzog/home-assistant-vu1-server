@@ -12,20 +12,12 @@ if ! bashio::supervisor.ping; then
     bashio::log.warning "Supervisor is not available, continuing anyway..."
 fi
 
-# Read the configured API port from add-on options
-PORT=$(bashio::config 'api_port')
-if ! bashio::var.has_value "${PORT}"; then
-    bashio::log.warning "No API port configured, using default 5340"
-    PORT=5340
-fi
+# Use fixed port for VU-Server (ingress handles external access)
+PORT=5340
 
-# Validate port range
-if [ "${PORT}" -lt 1024 ] || [ "${PORT}" -gt 65535 ]; then
-    bashio::log.fatal "Invalid port ${PORT}. Must be between 1024 and 65535"
-    exit 1
-fi
 
 bashio::log.info "Starting VU-Server on port ${PORT}..."
+bashio::log.info "Web UI available via Home Assistant ingress (Open Web UI button)."
 
 # Change to VU-Server directory
 cd /opt/vu-server || {
@@ -44,7 +36,7 @@ if [ ! -f "config.yaml" ]; then
     exit 1
 fi
 
-# Update the config.yaml with the configured port
+# Update the config.yaml with the fixed port
 bashio::log.info "Configuring VU-Server to use port ${PORT}"
 if ! sed -i "/^server:/,/^[^[:space:]]/ s/port: [0-9]*/port: ${PORT}/" config.yaml; then
     bashio::log.error "Failed to update config.yaml"
@@ -98,7 +90,7 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
-# Launch Ingress proxy
+# Launch Ingress proxy (always needed for Home Assistant integration)
 bashio::log.info "Launching Ingress proxy on port 8099..."
 python3 /opt/ingress_proxy.py ${PORT} &
 PROXY_PID=$!

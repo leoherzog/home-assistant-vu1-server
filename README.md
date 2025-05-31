@@ -7,8 +7,8 @@ This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranov
 ### Features
 
 - 🔌 Runs VU-Server within Home Assistant as an add-on
-- 🌐 Provides HTTP API for controlling VU1 dials
-- ⚙️ Configurable API port
+- 🌐 Provides HTTP API for controlling VU1 dials via Home Assistant ingress
+- 🔒 Secure ingress-only access by default
 - 🔄 Auto-starts with Home Assistant
 
 ## Installation
@@ -24,18 +24,32 @@ This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranov
 
 1. Find "VU-Server" in your add-on store
 2. Click **Install**
-3. Configure the API port if needed (default: 5340)
-4. Start the add-on
+3. Start the add-on
 
 ### Configuration
 
-The add-on supports the following configuration options:
-
-- `api_port`: Port number for the VU-Server API (default: 5340)
+This add-on requires no configuration options. The VU-Server runs on a fixed internal port and is accessed through Home Assistant's ingress system.
 
 ## Usage
 
-Once the add-on is running, the VU-Server API will be available at `http://hassio.local:5340` (or your configured port). The master key will be automatically generated and can be found in the add-on logs.
+1. Once the add-on is running, **click "Open Web UI"** in the add-on interface to access the VU-Server web interface
+2. The VU-Server API is available through Home Assistant's ingress proxy
+3. The master key will be automatically generated and can be found in the add-on logs
+
+### API Access
+
+All API endpoints are available through Home Assistant's ingress system. When accessing the API programmatically, use relative URLs from within Home Assistant or the full ingress URL path.
+
+## Advanced: Enabling External Access
+
+If you need direct external access to the VU-Server API:
+
+1. Go to **Settings** → **Add-ons** → **VU-Server**
+2. In the **Network** section (bottom of the page), map **Host Port** `5340` to **Container Port** `5340/tcp`
+3. Click **Save** and restart the add-on
+4. The VU-Server API will then be accessible at `http://your-ha-ip:5340`
+
+⚠️ **Security Warning**: Enabling external access bypasses Home Assistant's authentication. Only enable this if you understand the security implications.
 
 ## Troubleshooting
 

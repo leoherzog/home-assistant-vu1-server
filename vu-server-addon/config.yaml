@@ -14,14 +14,12 @@ arch:
 startup: services
 hassio_api: true
 init: false
-options:
-  api_port: 5340
-schema:
-  api_port: port
+options: {}
+schema: {}
 ports:
-  "5340/tcp": 5340
+  "5340/tcp": null
 ports_description:
-  "5340/tcp": "VU-Server API port"
+  "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
 uart: true
 usb: true
