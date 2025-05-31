@@ -94,8 +94,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         try:
             html = content.decode('utf-8')
             
-            # Convert absolute API paths to relative
-            html = re.sub(r'["\']\/api\/v0\/', lambda m: m.group(0)[0] + 'api/v0/', html)
+            # Convert all absolute paths to relative (except external URLs and protocol-relative URLs)
+            html = re.sub(r'(["\'])\/(?!\/|http|https)', r'\1', html)
             
             # Add base tag
             base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
