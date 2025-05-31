@@ -97,6 +97,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             # Convert all absolute paths to relative (except external URLs and protocol-relative URLs)
             html = re.sub(r'(["\'])\/(?!\/|http|https)', r'\1', html)
             
+            # Fix absolute URLs that point to the same host (Home Assistant external URLs)
+            # Replace https://domain/path with relative path
+            html = re.sub(r'(["\'])https?://[^/]+(/[^"\']*)', r'\1\2', html)
+            
             # Add base tag
             base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
             html = re.sub(r'(<head[^>]*>)', f'\\1\n    {base_tag}', html, flags=re.IGNORECASE)
