@@ -26,9 +26,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self.proxy_request()
     
     def proxy_request(self):
-        # Security check
-        if self.client_address[0] != "172.30.32.2":
-            logger.warning(f"Access denied for IP: {self.client_address[0]}")
+        # Security check - allow Home Assistant supervisor network range
+        client_ip = self.client_address[0]
+        if not (client_ip.startswith("172.30.") or client_ip == "127.0.0.1" or client_ip == "::1"):
+            logger.warning(f"Access denied for IP: {client_ip}")
             self.send_error(403, "Access denied")
             return
         
