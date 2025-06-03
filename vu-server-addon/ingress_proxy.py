@@ -109,6 +109,20 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
             html = re.sub(r'(<head[^>]*>)', f'\\1\n    {base_tag}', html, flags=re.IGNORECASE)
             
+            # Add JavaScript to prevent default behavior for hash links
+            # This fixes buttons that don't work properly in the ingress proxy environment
+            hash_link_fix_script = '''
+    <script>
+    // Fix for hash links in Home Assistant ingress proxy environment
+    // Use event delegation to prevent default navigation behavior for hash links
+    $(document).on('click', 'a[href="#"]', function(e) {
+        e.preventDefault();
+    });
+    </script>'''
+            
+            # Inject the script before the closing </head> tag
+            html = re.sub(r'(</head>)', f'    {hash_link_fix_script}\n\\1', html, flags=re.IGNORECASE)
+            
             return html.encode('utf-8')
         except Exception as e:
             logger.error(f"Error rewriting HTML: {e}")
