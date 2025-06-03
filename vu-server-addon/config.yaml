@@ -11,7 +11,7 @@ arch:
   - armv7
   - armhf
   - i386
-startup: services
+startup: application
 hassio_api: true
 init: false
 ports:
