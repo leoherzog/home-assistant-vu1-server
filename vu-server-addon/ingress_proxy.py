@@ -95,10 +95,12 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         try:
             html = content.decode('utf-8')
             
-            # Temporarily protect inline SVGs from path rewriting
+            # Temporarily protect inline SVGs and their preceding comments from path rewriting
             svg_placeholders = {}
-            svg_matches = re.findall(r'<svg[^>]*>.*?</svg>', html, re.DOTALL | re.IGNORECASE)
-            for i, match in enumerate(svg_matches):
+            
+            # Protect SVG elements along with any preceding HTML comments (especially tabler-icons.io references)
+            svg_with_comments_matches = re.findall(r'(?:<!--.*?-->\s*)?<svg[^>]*>.*?</svg>', html, re.DOTALL | re.IGNORECASE)
+            for i, match in enumerate(svg_with_comments_matches):
                 placeholder = f'SVG_PLACEHOLDER_{i}'
                 svg_placeholders[placeholder] = match
                 html = html.replace(match, placeholder)
@@ -106,7 +108,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             # Convert all absolute paths to relative (except external URLs and protocol-relative URLs)
             html = re.sub(r'(["\'])\/(?!\/|http|https)', r'\1', html)
             
-            # Restore SVGs
+            # Restore SVGs and their comments
             for placeholder, original in svg_placeholders.items():
                 html = html.replace(placeholder, original)
             
