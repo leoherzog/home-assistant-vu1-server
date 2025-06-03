@@ -155,11 +155,16 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             return content
     
     def rewrite_js_content(self, content):
-        """Fix API paths in JavaScript"""
+        """Fix API paths and redirects in JavaScript"""
         try:
             js = content.decode('utf-8')
             # Convert absolute API paths to relative
             js = re.sub(r'["\']\/api\/v0\/', lambda m: m.group(0)[0] + 'api/v0/', js)
+            
+            # Fix absolute redirects in JavaScript (like window.location.replace("/index.html"))
+            # Convert "/path" to "path" to work with base tag
+            js = re.sub(r'(window\.location\.(?:replace|href|assign)\s*\(\s*["\'])\/([^"\']+)', r'\1\2', js)
+            
             return js.encode('utf-8')
         except Exception as e:
             logger.error(f"Error rewriting JavaScript: {e}")
