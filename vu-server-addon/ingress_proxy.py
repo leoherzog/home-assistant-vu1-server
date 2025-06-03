@@ -113,8 +113,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 html = html.replace(placeholder, original)
             
             # Fix absolute URLs that point to the same host (Home Assistant external URLs)
-            # Replace https://domain/path with relative path
-            html = re.sub(r'(["\'])https?://[^/]+(/[^"\']*)', r'\1\2', html)
+            # Replace https://domain/path with relative path, but only in href attributes
+            # Use a more specific pattern that doesn't span across HTML elements
+            html = re.sub(r'(href\s*=\s*["\'])https?://[^/]+(/[^"\']*)', r'\1\2', html)
 
             # Fix CSS imports and links such as @import url('/inter/inter.css');
             html = re.sub(r'@import\s+url\(["\']?\/([^"\')]+)["\']?\);', r'@import url("\1");', html)
