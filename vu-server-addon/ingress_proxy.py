@@ -120,6 +120,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             # Fix CSS imports and links such as @import url('/inter/inter.css');
             html = re.sub(r'@import\s+url\(["\']?\/([^"\')]+)["\']?\);', r'@import url("\1");', html)
             
+            # Remove external font imports that fail in ingress proxy (e.g., Inter font from rsms.me)
+            html = re.sub(r'@import\s+url\(["\']?https?://[^"\']*inter[^"\']*["\']?\);', '', html, flags=re.IGNORECASE)
+            
             # Add base tag
             base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
             html = re.sub(r'(<head[^>]*>)', f'\\1\n    {base_tag}', html, flags=re.IGNORECASE)
