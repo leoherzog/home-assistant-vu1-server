@@ -128,14 +128,25 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             hash_link_fix_script = '''
     <script>
     // Fix for hash links in Home Assistant ingress proxy environment
-    // Use event delegation to prevent default navigation behavior for hash links
-    $(document).on('click', 'a[href="#"]', function(e) {
-        e.preventDefault();
-    });
+    // Wait for jQuery and DOM to be ready before setting up event handlers
+    (function checkAndInit() {
+        if (typeof $ !== 'undefined') {
+            $(document).ready(function() {
+                // Use event delegation to prevent default navigation behavior for hash links
+                $(document).on('click', 'a[href="#"]', function(e) {
+                    console.log('Hash link click prevented by ingress proxy fix');
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+        } else {
+            setTimeout(checkAndInit, 50);
+        }
+    })();
     </script>'''
             
-            # Inject the script before the closing </head> tag
-            html = re.sub(r'(</head>)', f'    {hash_link_fix_script}\n\\1', html, flags=re.IGNORECASE)
+            # Inject the script before the closing </body> tag (after jQuery is loaded)
+            html = re.sub(r'(</body>)', f'    {hash_link_fix_script}\n\\1', html, flags=re.IGNORECASE)
             
             return html.encode('utf-8')
         except Exception as e:
