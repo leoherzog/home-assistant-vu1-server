@@ -95,12 +95,41 @@ bashio::log.info "Launching Ingress proxy on port 8099..."
 python3 /opt/ingress_proxy.py ${PORT} &
 PROXY_PID=$!
 
-# Enhanced cleanup function
+# Enhanced cleanup function following Home Assistant add-on best practices
 cleanup() {
-    bashio::log.info "Shutting down services..."
-    [ -n "$PROXY_PID" ] && kill $PROXY_PID 2>/dev/null
-    [ -n "$VU_SERVER_PID" ] && kill $VU_SERVER_PID 2>/dev/null
-    wait
+    bashio::log.info "Shutting down VU-Server add-on..."
+    
+    # First try graceful shutdown with SIGTERM
+    if [ -n "$PROXY_PID" ]; then
+        bashio::log.info "Stopping ingress proxy (PID: $PROXY_PID)..."
+        kill -TERM $PROXY_PID 2>/dev/null || true
+    fi
+    
+    if [ -n "$VU_SERVER_PID" ]; then
+        bashio::log.info "Stopping VU-Server (PID: $VU_SERVER_PID)..."
+        kill -TERM $VU_SERVER_PID 2>/dev/null || true
+    fi
+    
+    # Wait a moment for graceful shutdown
+    sleep 2
+    
+    # Force kill if still running
+    if [ -n "$PROXY_PID" ] && kill -0 $PROXY_PID 2>/dev/null; then
+        bashio::log.warning "Force killing ingress proxy..."
+        kill -KILL $PROXY_PID 2>/dev/null || true
+    fi
+    
+    if [ -n "$VU_SERVER_PID" ] && kill -0 $VU_SERVER_PID 2>/dev/null; then
+        bashio::log.warning "Force killing VU-Server..."
+        kill -KILL $VU_SERVER_PID 2>/dev/null || true
+    fi
+    
+    # Also kill any lingering processes by name (fallback)
+    pkill -f "python3.*ingress_proxy.py" 2>/dev/null || true
+    pkill -f "python.*server.py" 2>/dev/null || true
+    
+    bashio::log.info "VU-Server add-on shutdown complete"
+    exit 0
 }
 trap cleanup SIGTERM SIGINT
 
