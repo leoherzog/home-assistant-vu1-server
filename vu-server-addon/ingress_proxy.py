@@ -95,8 +95,20 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         try:
             html = content.decode('utf-8')
             
+            # Temporarily protect inline SVGs from path rewriting
+            svg_placeholders = {}
+            svg_matches = re.findall(r'<svg[^>]*>.*?</svg>', html, re.DOTALL | re.IGNORECASE)
+            for i, match in enumerate(svg_matches):
+                placeholder = f'SVG_PLACEHOLDER_{i}'
+                svg_placeholders[placeholder] = match
+                html = html.replace(match, placeholder)
+            
             # Convert all absolute paths to relative (except external URLs and protocol-relative URLs)
             html = re.sub(r'(["\'])\/(?!\/|http|https)', r'\1', html)
+            
+            # Restore SVGs
+            for placeholder, original in svg_placeholders.items():
+                html = html.replace(placeholder, original)
             
             # Fix absolute URLs that point to the same host (Home Assistant external URLs)
             # Replace https://domain/path with relative path
