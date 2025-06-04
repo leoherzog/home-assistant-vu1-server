@@ -92,7 +92,7 @@ fi
 
 # Launch Ingress proxy (always needed for Home Assistant integration)
 bashio::log.info "Launching Ingress proxy on port 8099..."
-python3 /opt/ingress_proxy.py ${PORT} &
+/opt/venv/bin/python /opt/ingress_proxy.py ${PORT} &
 PROXY_PID=$!
 
 # Enhanced cleanup function following Home Assistant add-on best practices
