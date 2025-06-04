@@ -5,6 +5,8 @@ import urllib.request
 import sys
 import logging
 import re
+from bs4 import BeautifulSoup, Comment
+from urllib.parse import urljoin, urlparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - PROXY - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -91,71 +93,98 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         return content
     
     def rewrite_html_content(self, content, ingress_path):
-        """Add base tag and fix API paths in HTML"""
+        """Add base tag and fix API paths in HTML using BeautifulSoup"""
         try:
             html = content.decode('utf-8')
+            soup = BeautifulSoup(html, 'html.parser')
             
-            # Temporarily protect inline SVGs and their preceding comments from path rewriting
-            svg_placeholders = {}
+            # Add base tag to head
+            head = soup.find('head')
+            if head:
+                base_tag = soup.new_tag('base', href=f"{ingress_path.rstrip('/')}/")
+                head.insert(0, base_tag)
             
-            # Protect SVG elements along with any preceding HTML comments (especially tabler-icons.io references)
-            svg_with_comments_matches = re.findall(r'(?:<!--.*?-->\s*)?<svg[^>]*>.*?</svg>', html, re.DOTALL | re.IGNORECASE)
-            for i, match in enumerate(svg_with_comments_matches):
-                placeholder = f'SVG_PLACEHOLDER_{i}'
-                svg_placeholders[placeholder] = match
-                html = html.replace(match, placeholder)
+            # Fix relative URLs in various attributes
+            self._fix_relative_urls(soup)
             
-            # Convert all absolute paths to relative (except external URLs and protocol-relative URLs)
-            html = re.sub(r'(["\'])\/(?!\/|http|https)', r'\1', html)
+            # Remove external font imports from style tags and link tags
+            self._remove_external_fonts(soup)
             
-            # Restore SVGs and their comments
-            for placeholder, original in svg_placeholders.items():
-                html = html.replace(placeholder, original)
+            # Add hash link fix script
+            self._add_hash_link_fix(soup)
             
-            # Fix absolute URLs that point to the same host (Home Assistant external URLs)
-            # Replace https://domain/path with relative path, but only in href attributes
-            # Use a more specific pattern that doesn't span across HTML elements
-            html = re.sub(r'(href\s*=\s*["\'])https?://[^/]+(/[^"\']*)', r'\1\2', html)
-
-            # Fix CSS imports and links such as @import url('/inter/inter.css');
-            html = re.sub(r'@import\s+url\(["\']?\/([^"\')]+)["\']?\);', r'@import url("\1");', html)
-            
-            # Remove external font imports that fail in ingress proxy (e.g., Inter font from rsms.me)
-            html = re.sub(r'@import\s+url\(["\']?https?://[^"\']*inter[^"\']*["\']?\);', '', html, flags=re.IGNORECASE)
-            
-            # Add base tag
-            base_tag = f'<base href="{ingress_path.rstrip("/")}/">'
-            html = re.sub(r'(<head[^>]*>)', f'\\1\n    {base_tag}', html, flags=re.IGNORECASE)
-            
-            # Add JavaScript to prevent default behavior for hash links
-            # This fixes buttons that don't work properly in the ingress proxy environment
-            hash_link_fix_script = '''
-    <script>
-    // Fix for hash links in Home Assistant ingress proxy environment
-    // Wait for jQuery and DOM to be ready before setting up event handlers
-    (function checkAndInit() {
-        if (typeof $ !== 'undefined') {
-            $(document).ready(function() {
-                // Use event delegation to prevent default navigation behavior for hash links
-                $(document).on('click', 'a[href="#"]', function(e) {
-                    console.log('Hash link click prevented by ingress proxy fix');
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-            });
-        } else {
-            setTimeout(checkAndInit, 50);
-        }
-    })();
-    </script>'''
-            
-            # Inject the script before the closing </body> tag (after jQuery is loaded)
-            html = re.sub(r'(</body>)', f'    {hash_link_fix_script}\n\\1', html, flags=re.IGNORECASE)
-            
-            return html.encode('utf-8')
+            return str(soup).encode('utf-8')
         except Exception as e:
-            logger.error(f"Error rewriting HTML: {e}")
+            logger.error(f"Error rewriting HTML with BeautifulSoup: {e}")
             return content
+    
+    def _fix_relative_urls(self, soup):
+        """Fix relative URLs in HTML elements"""
+        # Fix href attributes in links
+        for tag in soup.find_all(['a', 'link'], href=True):
+            href = tag['href']
+            if href.startswith('/') and not href.startswith('//'):
+                # Convert absolute paths to relative (remove leading /)
+                tag['href'] = href[1:] if len(href) > 1 else ''
+            elif href.startswith('http'):
+                # Check if it's pointing to the same host and convert to relative
+                parsed = urlparse(href)
+                if parsed.netloc and parsed.path:
+                    tag['href'] = parsed.path[1:] if parsed.path.startswith('/') else parsed.path
+        
+        # Fix src attributes in scripts, images, etc.
+        for tag in soup.find_all(['script', 'img', 'iframe', 'source'], src=True):
+            src = tag['src']
+            if src.startswith('/') and not src.startswith('//'):
+                tag['src'] = src[1:] if len(src) > 1 else ''
+        
+        # Fix action attributes in forms
+        for tag in soup.find_all('form', action=True):
+            action = tag['action']
+            if action.startswith('/') and not action.startswith('//'):
+                tag['action'] = action[1:] if len(action) > 1 else ''
+    
+    def _remove_external_fonts(self, soup):
+        """Remove external font imports that fail in ingress proxy"""
+        # Remove external font links
+        for link in soup.find_all('link', rel='stylesheet'):
+            if link.get('href') and ('inter' in link['href'].lower() or 'font' in link['href'].lower()):
+                if link['href'].startswith('http'):
+                    link.decompose()
+        
+        # Remove external font imports from style tags
+        for style in soup.find_all('style'):
+            if style.string:
+                # Remove @import statements for external fonts
+                cleaned_css = re.sub(r'@import\s+url\(["\']?https?://[^"\']*inter[^"\']*["\']?\);', '', style.string, flags=re.IGNORECASE)
+                cleaned_css = re.sub(r'@import\s+url\(["\']?https?://[^"\']*font[^"\']*["\']?\);', '', cleaned_css, flags=re.IGNORECASE)
+                style.string = cleaned_css
+    
+    def _add_hash_link_fix(self, soup):
+        """Add JavaScript to fix hash links in ingress proxy environment"""
+        body = soup.find('body')
+        if body:
+            script_content = '''
+            // Fix for hash links in Home Assistant ingress proxy environment
+            // Wait for jQuery and DOM to be ready before setting up event handlers
+            (function checkAndInit() {
+                if (typeof $ !== 'undefined') {
+                    $(document).ready(function() {
+                        // Use event delegation to prevent default navigation behavior for hash links
+                        $(document).on('click', 'a[href="#"]', function(e) {
+                            console.log('Hash link click prevented by ingress proxy fix');
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                    });
+                } else {
+                    setTimeout(checkAndInit, 50);
+                }
+            })();
+            '''
+            script_tag = soup.new_tag('script')
+            script_tag.string = script_content
+            body.append(script_tag)
     
     def rewrite_js_content(self, content):
         """Fix API paths and redirects in JavaScript"""

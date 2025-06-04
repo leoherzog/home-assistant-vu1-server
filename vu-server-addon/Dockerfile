@@ -30,7 +30,8 @@ COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 # Create virtual environment and install dependencies
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt
+    /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt && \
+    /opt/venv/bin/pip install beautifulsoup4
 
 # Run make_version.py to replace template variables
 RUN cd /opt/vu-server && python3 make_version.py
