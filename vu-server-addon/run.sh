@@ -15,6 +15,22 @@ fi
 # Use fixed port for VU-Server (ingress handles external access)
 PORT=5340
 
+# Initialize persistent storage for VU-Server data
+bashio::log.info "Initializing persistent storage..."
+
+# Create persistent data directory if it doesn't exist
+if [ ! -d "/data/vu-server" ]; then
+    bashio::log.info "Creating persistent storage directory..."
+    mkdir -p /data/vu-server
+fi
+
+# Copy default config.yaml to persistent storage if it doesn't exist
+if [ ! -f "/data/vu-server/config.yaml" ]; then
+    bashio::log.info "Initializing default config.yaml in persistent storage..."
+    cp /opt/vu-server/config.yaml.default /data/vu-server/config.yaml
+else
+    bashio::log.info "Using existing persistent config.yaml"
+fi
 
 bashio::log.info "Starting VU-Server on port ${PORT}..."
 bashio::log.info "Web UI available via Home Assistant ingress (Open Web UI button)."

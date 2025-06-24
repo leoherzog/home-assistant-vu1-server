@@ -36,6 +36,12 @@ RUN python3 -m venv /opt/venv && \
 # Run make_version.py to replace template variables
 RUN cd /opt/vu-server && python3 make_version.py
 
+# Create persistent data directory structure and backup original config
+RUN mkdir -p /data/vu-server && \
+    cp /opt/vu-server/config.yaml /opt/vu-server/config.yaml.default && \
+    ln -sf /data/vu-server/config.yaml /opt/vu-server/config.yaml && \
+    ln -sf /data/vu-server/vudials.db /opt/vu-server/vudials.db
+
 # Create s6-overlay service directory and copy files
 RUN mkdir -p /etc/services.d/vu-server
 COPY run.sh /etc/services.d/vu-server/run
