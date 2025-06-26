@@ -79,14 +79,14 @@ else
 fi
 
 # Verify Python environment
-if [ ! -x "/opt/venv/bin/python" ]; then
+if [ ! -x "/opt/vu-server/venv/bin/python" ]; then
     bashio::log.fatal "Python virtual environment not found"
     exit 1
 fi
 
 # Launch VU-Server in background
 bashio::log.info "Launching VU-Server on port ${PORT}..."
-/opt/venv/bin/python server.py --logging info &
+/opt/vu-server/venv/bin/python server.py --logging info &
 VU_SERVER_PID=$!
 
 # Wait for VU-Server to be fully ready
@@ -108,7 +108,7 @@ fi
 
 # Launch Ingress proxy (always needed for Home Assistant integration)
 bashio::log.info "Launching Ingress proxy on port 8099..."
-/opt/venv/bin/python /opt/ingress_proxy.py ${PORT} &
+/opt/vu-server/venv/bin/python /opt/ingress_proxy.py ${PORT} &
 PROXY_PID=$!
 
 # Enhanced cleanup function following Home Assistant add-on best practices
@@ -150,4 +150,4 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # Wait for either process to exit
-wait
+wait -n $VU_SERVER_PID $PROXY_PID

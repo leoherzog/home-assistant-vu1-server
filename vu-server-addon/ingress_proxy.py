@@ -35,7 +35,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(403, "Access denied")
             return
         
-        target_port = sys.argv[1] if len(sys.argv) > 1 else "5340"
+        target_port = sys.argv[1]
         target_url = f"http://127.0.0.1:{target_port}{self.path}"
         ingress_path = self.headers.get('X-Ingress-Path', '')
         

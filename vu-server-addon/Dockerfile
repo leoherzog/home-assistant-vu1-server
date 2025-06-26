@@ -5,9 +5,7 @@ FROM alpine:latest AS vu-server-source
 RUN apk add --no-cache git
 
 # Clone VU-Server at specific commit/tag
-RUN git clone https://github.com/SasaKaranovic/VU-Server.git /opt/vu-server && \
-    cd /opt/vu-server && \
-    git checkout v20240329
+RUN git clone --depth 1 --branch v20240329 https://github.com/SasaKaranovic/VU-Server.git /opt/vu-server
 
 FROM $BUILD_FROM
 
@@ -28,10 +26,10 @@ RUN apk add --no-cache \
 COPY --from=vu-server-source /opt/vu-server /opt/vu-server
 
 # Create virtual environment and install dependencies
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install -r /opt/vu-server/requirements.txt && \
-    /opt/venv/bin/pip install beautifulsoup4
+RUN python3 -m venv /opt/vu-server/venv && \
+    /opt/vu-server/venv/bin/pip install --upgrade pip && \
+    /opt/vu-server/venv/bin/pip install -r /opt/vu-server/requirements.txt && \
+    /opt/vu-server/venv/bin/pip install beautifulsoup4
 
 # Run make_version.py to replace template variables
 RUN cd /opt/vu-server && python3 make_version.py
