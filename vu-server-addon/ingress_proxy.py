@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import http.server
+import ipaddress
 import socketserver
 import urllib.request
 import sys
@@ -10,6 +11,15 @@ from urllib.parse import urljoin, urlparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - PROXY - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def is_allowed_ip(ip_str):
+    """Check if IP is in Home Assistant supervisor network or loopback."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        supervisor_network = ipaddress.ip_network("172.30.0.0/16")
+        return ip in supervisor_network or ip.is_loopback
+    except ValueError:
+        return False
 
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -30,7 +40,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def proxy_request(self):
         # Security check - allow Home Assistant supervisor network range
         client_ip = self.client_address[0]
-        if not (client_ip.startswith("172.30.") or client_ip == "127.0.0.1" or client_ip == "::1"):
+        if not is_allowed_ip(client_ip):
             logger.warning(f"Access denied for IP: {client_ip}")
             self.send_error(403, "Access denied")
             return
