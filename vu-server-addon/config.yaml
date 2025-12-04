@@ -5,6 +5,9 @@ panel_icon: "mdi:speedometer"
 version: "0.2.18"
 url: "https://github.com/leoherzog/home-assistant-vu1-server"
 image: "ghcr.io/leoherzog/vu-server-addon-{arch}"
+homeassistant: "2023.6.0"
+stage: experimental
+startup: application
 arch:
   - aarch64
   - amd64
@@ -18,6 +21,9 @@ ports:
 ports_description:
   "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
+ingress_port: 8099
+ingress_entry: "/"
+watchdog: "http://[HOST]:[PORT:5340]/api/v0/dial/list"
 uart: true
 usb: true
 devices:
