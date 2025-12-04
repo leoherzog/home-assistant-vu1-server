@@ -48,3 +48,7 @@ RUN chmod a+x /etc/services.d/vu-server/run
 
 # Expose VU-Server API port
 EXPOSE 5340
+
+# Health check for Home Assistant Supervisor watchdog
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:5340/api/v0/dial/list || exit 1
