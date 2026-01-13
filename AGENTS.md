@@ -58,7 +58,6 @@ python3 make_version.py
 | Option | Value | Description |
 |--------|-------|-------------|
 | `homeassistant` | `"2024.4.0"` | Minimum HA version required |
-| `discovery` | `[vu_server]` | Enables Supervisor discovery for custom integrations |
 | `udev` | `true` | Mounts host udev database for better USB detection |
 | `ingress_stream` | `true` | Enables streaming for better API performance |
 | `backup_exclude` | `["*.log", "upload/tmp_*"]` | Excludes logs and temp files from backups |
@@ -69,7 +68,6 @@ python3 make_version.py
 - **`run.sh`** - Startup script
   - Reads user options via `bashio::config` (log_level)
   - Detects USB devices (`/dev/ttyACM*`, `/dev/ttyUSB*`)
-  - Publishes discovery info to Supervisor via `bashio::discovery`
   - Manages graceful shutdown with signal traps
 - **`ingress_proxy.py`** - HTTP proxy for Home Assistant ingress
   - Multi-threaded `ThreadedTCPServer` for concurrent requests
@@ -79,25 +77,20 @@ python3 make_version.py
   - Clones VU-Server at pinned version
   - Docker HEALTHCHECK on `/` endpoint (30s interval, 60s start period)
 
-### Supervisor Discovery
+### Custom Integration Setup
 
-The add-on publishes discovery info when VU-Server starts, enabling custom integrations to auto-configure:
+This add-on does **not** use Supervisor auto-discovery. Users must manually configure the [home-assistant-vu1-devices](https://github.com/leoherzog/home-assistant-vu1-devices) integration with:
 
-```json
-{
-  "service": "vu_server",
-  "config": {
-    "host": "<container_ip>",
-    "port": 5340,
-    "api_key": "<master_key>"
-  }
-}
-```
+| Field | Value | Notes |
+|-------|-------|-------|
+| Host | Add-on container IP or `localhost` | Use container IP if integration runs on different host |
+| Port | `5340` | Fixed, not configurable |
+| API Key | From VU-Server Web UI | Open Web UI → Settings → API Keys |
 
-**For custom integration developers:**
-1. Add `"hassio": true` to `manifest.json`
-2. Implement `async_step_hassio(self, discovery_info: HassioServiceInfo)` in `config_flow.py`
-3. Access: `discovery_info.config["host"]`, `discovery_info.config["port"]`, `discovery_info.config["api_key"]`
+**Finding your API key:**
+1. Open the VU-Server Web UI (click "Open Web UI" in add-on panel)
+2. Navigate to Settings → API Keys
+3. Copy the master key or create a dedicated key for Home Assistant
 
 ## VU-Server Core (`/vu-server/` - Do Not Modify)
 

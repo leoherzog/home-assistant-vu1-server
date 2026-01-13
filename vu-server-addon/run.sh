@@ -114,27 +114,6 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
-# Publish discovery info to Supervisor for custom integration auto-discovery
-bashio::log.info "Publishing discovery info to Supervisor..."
-API_KEY=$(grep -Po '(?<=master_key: ).*' /data/vu-server/config.yaml | tr -d '"' | tr -d "'" | tr -d ' ')
-CONTAINER_IP=$(hostname -i | awk '{print $1}')
-
-if [ -n "$API_KEY" ]; then
-    config=$(bashio::var.json \
-        host "${CONTAINER_IP}" \
-        port "^${PORT}" \
-        api_key "${API_KEY}" \
-    )
-
-    if bashio::discovery "vu_server" "${config}" > /dev/null 2>&1; then
-        bashio::log.info "Discovery published successfully"
-    else
-        bashio::log.warning "Discovery publish failed (custom integration may not auto-discover)"
-    fi
-else
-    bashio::log.warning "Could not publish discovery (missing API key)"
-fi
-
 # Launch Ingress proxy (always needed for Home Assistant integration)
 bashio::log.info "Launching Ingress proxy on port 8099..."
 /opt/vu-server/venv/bin/python /opt/ingress_proxy.py ${PORT} &

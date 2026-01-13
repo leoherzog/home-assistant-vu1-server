@@ -28,8 +28,6 @@ devices:
 backup_exclude:
   - "*.log"
   - "upload/tmp_*"
-discovery:
-  - vu_server
 options:
   log_level: info
 schema:
