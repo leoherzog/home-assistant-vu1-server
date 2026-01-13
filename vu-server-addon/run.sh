@@ -19,6 +19,10 @@ fi
 # Use fixed port for VU-Server (ingress handles external access)
 PORT=5340
 
+# Read user configuration options
+LOG_LEVEL=$(bashio::config 'log_level' 'info')
+bashio::log.info "Configuration: log_level=${LOG_LEVEL}"
+
 # Initialize persistent storage for VU-Server data
 bashio::log.info "Initializing persistent storage..."
 
@@ -90,7 +94,7 @@ fi
 
 # Launch VU-Server in background
 bashio::log.info "Launching VU-Server on port ${PORT}..."
-/opt/vu-server/venv/bin/python server.py --logging info &
+/opt/vu-server/venv/bin/python server.py --logging "${LOG_LEVEL}" &
 VU_SERVER_PID=$!
 
 # Wait for VU-Server to be fully ready

@@ -2,10 +2,10 @@ name: "VU-Server"
 slug: "vu-server-addon"
 description: "Add-on to run the Streacom VU1 Server for controlling VU1 dials"
 panel_icon: "mdi:speedometer"
-version: "0.2.20"
+version: "0.3.0"
 url: "https://github.com/leoherzog/home-assistant-vu1-server"
 image: "ghcr.io/leoherzog/vu-server-addon-{arch}"
-homeassistant: "2023.6.0"
+homeassistant: "2024.4.0"
 stage: experimental
 arch:
   - aarch64
@@ -18,8 +18,19 @@ ports_description:
   "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
 ingress_entry: "/"
+ingress_stream: true
 uart: true
 usb: true
+udev: true
 devices:
   - /dev/ttyACM0
   - /dev/ttyUSB0
+backup_exclude:
+  - "*.log"
+  - "upload/tmp_*"
+discovery:
+  - vu_server
+options:
+  log_level: info
+schema:
+  log_level: "list(debug|info|warning|error)"
