@@ -11,6 +11,8 @@ This is a **Home Assistant Add-on** for the **VU-Server** that controls **Streac
 
 **IMPORTANT**: The `/vu-server/` directory is a **Git submodule** pointing to the upstream VU-Server repository (`https://github.com/SasaKaranovic/VU-Server.git`). Do NOT modify files within this directory as they are managed by the upstream project. All Home Assistant add-on specific changes should be made in `/vu-server-addon/` only.
 
+**Note**: The Dockerfile clones a pinned version (`v20240329`) directly from GitHub rather than using the local submodule. The submodule exists for development reference only.
+
 ## Development Commands
 
 ### Running VU-Server from Source
@@ -68,10 +70,17 @@ All endpoints under `/api/v0/`:
 - **JavaScript APIs**: `vu1_api.js`, `vu1_gui_*.js` files
 
 ### Add-on Integration
-- **`run.sh`** - Startup script with USB device detection
-- **`ingress_proxy.py`** - HTTP proxy for Home Assistant ingress
+- **`run.sh`** - Startup script with USB device detection and signal handling
+  - Early signal trap for graceful shutdown during startup phase
+  - Full cleanup trap after processes start (kills both VU-Server and proxy)
+  - Health check uses unauthenticated `/` endpoint (not `/api/v0/dial/list`)
+- **`ingress_proxy.py`** - Multi-threaded HTTP proxy for Home Assistant ingress
+  - `ThreadedTCPServer` handles concurrent requests
+  - 30-second timeout on upstream requests
+  - URL rewriting only converts localhost URLs to relative (preserves external links)
+  - Module-level `TARGET_PORT` variable (set from command line argument)
 - **Auto-discovery**: Scans `/dev/ttyACM*` and `/dev/ttyUSB*` for VU1 hardware
-- **Recent fixes**: JS redirections, button/icon handling, jQuery loading order, event listener cleanup
+- **Health check**: Docker HEALTHCHECK and readiness check use `/` endpoint (no auth required)
 
 ## Key Patterns
 
@@ -94,6 +103,7 @@ All endpoints under `/api/v0/`:
 - Multi-stage Alpine Linux build
 - Home Assistant ingress proxy for secure web UI access
 - Optional external port mapping (port 5340)
+- Docker HEALTHCHECK monitors `/` endpoint (30s interval, 60s start period)
 
 ## Hardware Requirements
 

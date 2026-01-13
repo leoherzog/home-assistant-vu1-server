@@ -43,6 +43,6 @@ If you need direct external access to the VU-Server API:
 
 ## Support
 
-For support with the VU-Server software itself, please refer to the [official VU-Server documentation](https://github.com/streacom/vu-server).
+For support with the VU-Server software itself, please refer to the [official VU-Server documentation](https://github.com/SasaKaranovic/VU-Server).
 
 For add-on specific issues, please report them in the [GitHub repository](https://github.com/leoherzog/home-assistant-vu1-server).

@@ -7,10 +7,13 @@ import sys
 import logging
 import re
 from bs4 import BeautifulSoup, Comment
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - PROXY - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Module-level target port (set in __main__)
+TARGET_PORT = "5340"
 
 def is_allowed_ip(ip_str):
     """Check if IP is in Home Assistant supervisor network or loopback."""
@@ -45,8 +48,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(403, "Access denied")
             return
         
-        target_port = sys.argv[1]
-        target_url = f"http://127.0.0.1:{target_port}{self.path}"
+        target_url = f"http://127.0.0.1:{TARGET_PORT}{self.path}"
         ingress_path = self.headers.get('X-Ingress-Path', '')
         
         logger.info(f"Proxying {self.command} {self.path} -> {target_url}")
@@ -67,8 +69,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 if header.lower() not in skip_headers:
                     req.add_header(header, value)
             
-            # Make request and process response
-            with urllib.request.urlopen(req) as response:
+            # Make request and process response (30 second timeout)
+            with urllib.request.urlopen(req, timeout=30) as response:
                 content = response.read()
                 content_type = response.headers.get('Content-Type', '')
                 
@@ -137,9 +139,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 # Convert absolute paths to relative (remove leading /)
                 tag['href'] = href[1:] if len(href) > 1 else ''
             elif href.startswith('http'):
-                # Check if it's pointing to the same host and convert to relative
+                # Only convert to relative if it's pointing to localhost (same server)
                 parsed = urlparse(href)
-                if parsed.netloc and parsed.path:
+                local_hosts = ('localhost', '127.0.0.1', f'localhost:{TARGET_PORT}', f'127.0.0.1:{TARGET_PORT}')
+                if parsed.netloc in local_hosts and parsed.path:
                     tag['href'] = parsed.path[1:] if parsed.path.startswith('/') else parsed.path
         
         # Fix src attributes in scripts, images, etc.
@@ -220,10 +223,16 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             elif header.lower() != 'content-encoding':  # Skip content-encoding
                 self.send_header(header, value)
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """Multi-threaded TCP server to handle concurrent requests"""
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 if __name__ == "__main__":
     PORT = 8099
-    target_port = sys.argv[1] if len(sys.argv) > 1 else "5340"
-    print(f"Starting Ingress proxy on port {PORT}, forwarding to localhost:{target_port}")
-    
-    with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
+    TARGET_PORT = sys.argv[1] if len(sys.argv) > 1 else "5340"
+    print(f"Starting Ingress proxy on port {PORT}, forwarding to localhost:{TARGET_PORT}")
+
+    with ThreadedTCPServer(("", PORT), ProxyHandler) as httpd:
         httpd.serve_forever()

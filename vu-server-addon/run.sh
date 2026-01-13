@@ -1,11 +1,15 @@
 #!/usr/bin/with-contenv bashio
 # Home Assistant Add-on startup script for VU-Server
 
-# Function to handle cleanup on exit
-cleanup() {
-    bashio::log.info "Shutting down VU-Server..."
+# Early signal handling to ensure graceful shutdown during startup
+# This trap is replaced with the full cleanup() trap after processes start
+early_cleanup() {
+    bashio::log.warning "Received shutdown signal during startup, exiting..."
+    [ -n "$VU_SERVER_PID" ] && kill -TERM $VU_SERVER_PID 2>/dev/null || true
+    [ -n "$PROXY_PID" ] && kill -TERM $PROXY_PID 2>/dev/null || true
+    exit 0
 }
-trap cleanup SIGTERM SIGINT
+trap early_cleanup SIGTERM SIGINT
 
 # Validate environment
 if ! bashio::supervisor.ping; then
@@ -93,7 +97,7 @@ VU_SERVER_PID=$!
 bashio::log.info "Waiting for VU-Server to be ready..."
 READY=false
 for i in {1..30}; do
-    if curl -s http://localhost:${PORT}/api/v0/dial/list >/dev/null 2>&1; then
+    if curl -sf http://localhost:${PORT}/ >/dev/null 2>&1; then
         bashio::log.info "VU-Server is ready after ${i} seconds"
         READY=true
         break
@@ -151,3 +155,7 @@ trap cleanup SIGTERM SIGINT
 
 # Wait for either process to exit
 wait -n $VU_SERVER_PID $PROXY_PID
+
+# If we get here, one process exited - trigger cleanup for the other
+bashio::log.warning "A process exited unexpectedly, initiating cleanup..."
+cleanup
