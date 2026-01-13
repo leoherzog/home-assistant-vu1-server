@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code, Codex, Gemini, etc when working with code in this repository.
 
 ## Project Overview
 
@@ -28,6 +28,20 @@ python3 server.py --logging info
 python3 server.py --logging debug
 ```
 
+### Add-on Development
+```bash
+# Build Docker image (from vu-server-addon directory)
+docker build -t vu-server-addon .
+
+# Run add-on linter locally
+cd /tmp && git clone --depth 1 https://github.com/frenck/action-addon-linter.git
+cd action-addon-linter/src
+uv venv .venv && source .venv/bin/activate && uv pip install jsonschema pyyaml
+cp *.schema.json /tmp/
+sed 's|/config.schema.json|/tmp/config.schema.json|g; s|/build.schema.json|/tmp/build.schema.json|g' lint.py > lint_local.py
+INPUT_PATH="/path/to/vu-server-addon" INPUT_COMMUNITY="false" python3 lint_local.py
+```
+
 ### Code Quality
 ```bash
 # Run pylint (from vu-server directory)
@@ -37,73 +51,84 @@ pylint *.py dials/*.py
 python3 make_version.py
 ```
 
-### Add-on Development
-```bash
-# Build Docker image (from vu-server-addon directory)
-docker build -t vu-server-addon .
+## Home Assistant Add-on (`/vu-server-addon/`)
+
+### Configuration (`config.yaml`)
+
+| Option | Value | Description |
+|--------|-------|-------------|
+| `homeassistant` | `"2024.4.0"` | Minimum HA version required |
+| `discovery` | `[vu_server]` | Enables Supervisor discovery for custom integrations |
+| `udev` | `true` | Mounts host udev database for better USB detection |
+| `ingress_stream` | `true` | Enables streaming for better API performance |
+| `backup_exclude` | `["*.log", "upload/tmp_*"]` | Excludes logs and temp files from backups |
+| `options`/`schema` | `log_level` | User-configurable: debug, info, warning, error |
+
+### Key Files
+
+- **`run.sh`** - Startup script
+  - Reads user options via `bashio::config` (log_level)
+  - Detects USB devices (`/dev/ttyACM*`, `/dev/ttyUSB*`)
+  - Publishes discovery info to Supervisor via `bashio::discovery`
+  - Manages graceful shutdown with signal traps
+- **`ingress_proxy.py`** - HTTP proxy for Home Assistant ingress
+  - Multi-threaded `ThreadedTCPServer` for concurrent requests
+  - 30-second timeout on upstream requests
+  - URL rewriting for ingress compatibility
+- **`Dockerfile`** - Multi-stage Alpine Linux build
+  - Clones VU-Server at pinned version
+  - Docker HEALTHCHECK on `/` endpoint (30s interval, 60s start period)
+
+### Supervisor Discovery
+
+The add-on publishes discovery info when VU-Server starts, enabling custom integrations to auto-configure:
+
+```json
+{
+  "service": "vu_server",
+  "config": {
+    "host": "<container_ip>",
+    "port": 5340,
+    "api_key": "<master_key>"
+  }
+}
 ```
 
-## Architecture
+**For custom integration developers:**
+1. Add `"hassio": true` to `manifest.json`
+2. Implement `async_step_hassio(self, discovery_info: HassioServiceInfo)` in `config_flow.py`
+3. Access: `discovery_info.config["host"]`, `discovery_info.config["port"]`, `discovery_info.config["api_key"]`
 
-### Core Components
-- **`server.py`** - Main Tornado web server (port 5340) with REST API endpoints
-- **`dial_driver.py`** - Low-level serial communication with VU1 hardware
-- **`server_dial_handler.py`** - High-level dial management and periodic updates
-- **`server_config.py`** - Configuration management (YAML + SQLite integration)
-- **`database.py`** - SQLite database for dials, API keys, and settings
+## VU-Server Core (`/vu-server/` - Do Not Modify)
 
-### Configuration
-- **`config.yaml`** - Server settings (port, master key, hardware port)
-- **SQLite database** - Persistent storage for dial configurations and API keys
+### Components
 
-### REST API Structure
-All endpoints under `/api/v0/`:
+| File | Purpose |
+|------|---------|
+| `server.py` | Main Tornado web server (port 5340) with REST API |
+| `dial_driver.py` | Low-level serial communication with VU1 hardware |
+| `server_dial_handler.py` | High-level dial management and periodic updates |
+| `server_config.py` | Configuration management (YAML + SQLite) |
+| `database.py` | SQLite database for dials, API keys, settings |
+
+### REST API (`/api/v0/`)
+
 - **Dial Control**: `/dial/{uid}/set?value={0-100}`, `/dial/{uid}/setRaw?value={raw}`
 - **Hardware**: `/dial/{uid}/backlight?red={}&green={}&blue={}`, `POST /dial/{uid}/image/set`
 - **Administration**: `/dial/provision`, `/dial/{uid}/name?name={}`, `/dial/{uid}/calibrate?value={}`
 - **API Keys**: `/admin/keys/list`, `POST /admin/keys/create`, `POST /admin/keys/update`
 
 ### Web Interface
+
 - **Location**: `/vu-server/www/`
 - **Framework**: Tabler dashboard template with jQuery
 - **Entry Point**: `index.html`
-- **JavaScript APIs**: `vu1_api.js`, `vu1_gui_*.js` files
 
-### Add-on Integration
-- **`run.sh`** - Startup script with USB device detection and signal handling
-  - Early signal trap for graceful shutdown during startup phase
-  - Full cleanup trap after processes start (kills both VU-Server and proxy)
-  - Health check uses unauthenticated `/` endpoint (not `/api/v0/dial/list`)
-- **`ingress_proxy.py`** - Multi-threaded HTTP proxy for Home Assistant ingress
-  - `ThreadedTCPServer` handles concurrent requests
-  - 30-second timeout on upstream requests
-  - URL rewriting only converts localhost URLs to relative (preserves external links)
-  - Module-level `TARGET_PORT` variable (set from command line argument)
-- **Auto-discovery**: Scans `/dev/ttyACM*` and `/dev/ttyUSB*` for VU1 hardware
-- **Health check**: Docker HEALTHCHECK and readiness check use `/` endpoint (no auth required)
+### Authentication
 
-## Key Patterns
-
-### Serial Communication
-- Hardware communication through pyserial over USB
-- Device auto-detection in add-on startup script
-- Custom protocol for VU1 hub communication
-
-### API Authentication
 - Master key system with configurable API keys
 - Granular permissions per dial UID
-- Key management through admin endpoints
-
-### Configuration Management
-- YAML base configuration overlaid with SQLite database
-- Runtime dial discovery and provisioning
-- Persistent dial naming and calibration settings
-
-### Docker Integration
-- Multi-stage Alpine Linux build
-- Home Assistant ingress proxy for secure web UI access
-- Optional external port mapping (port 5340)
-- Docker HEALTHCHECK monitors `/` endpoint (30s interval, 60s start period)
+- Health check endpoint `/` requires no authentication
 
 ## Hardware Requirements
 
