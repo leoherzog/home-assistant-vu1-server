@@ -18,7 +18,6 @@ ports_description:
   "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
 ingress_entry: "/"
-ingress_stream: false
 uart: true
 usb: true
 udev: true
