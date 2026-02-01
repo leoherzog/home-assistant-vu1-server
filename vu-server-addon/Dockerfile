@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM alpine:latest AS vu-server-source
+FROM alpine:3.22.3 AS vu-server-source
 
 # Install git for cloning
 RUN apk add --no-cache git
@@ -11,12 +11,12 @@ FROM $BUILD_FROM
 
 # Install Python and other dependencies
 RUN apk add --no-cache \
-    python3 \
-    py3-pip \
+    python3=3.12.12-r0 \
+    py3-pip=25.1.1-r0 \
     curl \
     gcc \
     musl-dev \
-    python3-dev \
+    python3-dev=3.12.12-r0 \
     libffi-dev \
     openssl-dev \
     zlib-dev \

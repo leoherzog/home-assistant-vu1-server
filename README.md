@@ -28,7 +28,10 @@ This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranov
 
 ### Configuration
 
-This add-on requires no configuration options. The VU-Server runs on a fixed internal port and is accessed through Home Assistant's ingress system.
+Optional setting:
+- `log_level`: debug | info | warning | error (default: info)
+
+The VU-Server runs on a fixed internal port and is accessed through Home Assistant's ingress system.
 
 ## Usage
 
@@ -39,6 +42,7 @@ This add-on requires no configuration options. The VU-Server runs on a fixed int
 ### API Access
 
 All API endpoints are available through Home Assistant's ingress system. When accessing the API programmatically, use relative URLs from within Home Assistant or the full ingress URL path.
+Ingress request bodies are buffered and limited to ~16 MB; for larger uploads, use direct port mapping below.
 
 ## Advanced: Enabling External Access
 

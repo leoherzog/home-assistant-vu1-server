@@ -61,7 +61,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             
             # Copy headers, skip cache headers for HTML to prevent 304s
             is_html_request = self.path == '/' or self.path.endswith('.html')
-            skip_headers = ['host', 'content-length']
+            skip_headers = ['host', 'content-length', 'accept-encoding']
             if is_html_request:
                 skip_headers.extend(['if-modified-since', 'if-none-match'])
             
@@ -220,7 +220,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         for header, value in response_headers.items():
             if header.lower() == 'content-length':
                 self.send_header(header, str(content_length))
-            elif header.lower() != 'content-encoding':  # Skip content-encoding
+            elif header.lower() not in ('content-encoding', 'transfer-encoding'):  # Skip content/transfer encoding
                 self.send_header(header, value)
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):

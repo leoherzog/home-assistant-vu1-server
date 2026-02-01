@@ -97,6 +97,21 @@ bashio::log.info "Launching VU-Server on port ${PORT}..."
 /opt/vu-server/venv/bin/python server.py --logging "${LOG_LEVEL}" &
 VU_SERVER_PID=$!
 
+# Abort startup and clean up the spawned server process.
+abort_startup() {
+    bashio::log.error "$1"
+    if [ -n "$VU_SERVER_PID" ]; then
+        bashio::log.info "Stopping VU-Server (PID: $VU_SERVER_PID)..."
+        kill -TERM $VU_SERVER_PID 2>/dev/null || true
+        sleep 2
+        if kill -0 $VU_SERVER_PID 2>/dev/null; then
+            bashio::log.warning "Force killing VU-Server..."
+            kill -KILL $VU_SERVER_PID 2>/dev/null || true
+        fi
+    fi
+    exit 1
+}
+
 # Wait for VU-Server to be fully ready
 bashio::log.info "Waiting for VU-Server to be ready..."
 READY=false
@@ -110,8 +125,7 @@ for i in {1..30}; do
 done
 
 if [ "$READY" = false ]; then
-    bashio::log.error "VU-Server failed to start properly after 30 seconds"
-    exit 1
+    abort_startup "VU-Server failed to start properly after 30 seconds"
 fi
 
 # Launch Ingress proxy (always needed for Home Assistant integration)
