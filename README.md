@@ -7,15 +7,15 @@ This Home Assistant add-on runs the [`VU-Server`](https://github.com/SasaKaranov
 ### Features
 
 - 🔌 Runs VU-Server within Home Assistant as an add-on
-- 🌐 Provides HTTP API for controlling VU1 dials via Home Assistant ingress
-- 🔒 Secure ingress-only access by default
+- 🌐 Serves the VU-Server Web UI through Home Assistant ingress
+- 🔒 Per-install API keys — a unique master key is generated on first start
 - 🔄 Auto-starts with Home Assistant
 
 ## Installation
 
 ### Add Repository to Home Assistant
 
-1. In Home Assistant, navigate to **Supervisor** > **Add-on Store**
+1. In Home Assistant, navigate to **Settings** → **Add-ons** → **Add-on Store**
 2. Click the three dots menu in the top right and select **Repositories**
 3. Add this repository URL: `https://github.com/leoherzog/home-assistant-vu1-server`
 4. Click **Add**
@@ -36,8 +36,8 @@ The VU-Server runs on a fixed internal port and is accessed through Home Assista
 ## Usage
 
 1. Once the add-on is running, **click "Open Web UI"** in the add-on interface to access the VU-Server web interface
-2. The VU-Server API is available through Home Assistant's ingress proxy
-3. The master key will be automatically generated and can be found in the add-on logs
+2. The Web UI is served through Home Assistant's ingress proxy; the VU-Server API listens on port `5340`
+3. On the **first start of a fresh install**, the add-on generates a **unique master key** for your installation. It is printed **once** in the add-on log (look for "Master key (shown once): …") and stored in `/data/vu-server/config.yaml` inside the add-on. Existing installs keep their previously generated key. Use this master key to unlock the Web UI and to create API keys.
 
 ### API Access
 
@@ -53,7 +53,17 @@ If you need direct external access to the VU-Server API:
 3. Click **Save** and restart the add-on
 4. The VU-Server API will then be accessible at `http://your-ha-ip:5340`
 
-⚠️ **Security Warning**: Enabling external access bypasses Home Assistant's authentication. Only enable this if you understand the security implications.
+⚠️ **Security Warning**: The VU-Server API is protected by its own API-key system, and (as of v0.4.0) each install gets a unique master key instead of the public upstream default — so the API is no longer wide open by default. However, mapping port `5340` to a host port still exposes the API directly on your network, **outside** Home Assistant's authentication and the ingress allowlist. Anyone who reaches that port and obtains/guesses a key can drive your dials. Only enable external access if you understand the implications, and keep your keys secret.
+
+## Connecting the Home Assistant integration
+
+To control dials as Home Assistant entities, install the companion integration: [**leoherzog/home-assistant-vu1-devices**](https://github.com/leoherzog/home-assistant-vu1-devices).
+
+When this add-on is installed and running, the integration **auto-discovers it** through the Supervisor API and connects directly to the add-on at `hostname:5340` — you do **not** need to enter a host or port. You only provide an **API key**:
+
+1. Open the VU-Server Web UI (the **Open Web UI** button on this add-on's page).
+2. Unlock it with the **master key** from the add-on log (or from `/data/vu-server/config.yaml`).
+3. Go to **Settings → API Keys** and create/copy a key, then paste it into the integration's setup dialog. (The master key itself also works.)
 
 ## Troubleshooting
 
