@@ -16,7 +16,6 @@ ports:
 ports_description:
   "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
-watchdog: "http://[HOST]:[PORT:5340]/"
 uart: true
 udev: true
 backup_exclude:

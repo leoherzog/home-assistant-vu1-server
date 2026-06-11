@@ -75,6 +75,10 @@ COPY finish.sh /etc/services.d/vu-server/finish
 COPY ingress_proxy.py /opt/ingress_proxy.py
 RUN chmod a+x /etc/services.d/vu-server/run /etc/services.d/vu-server/finish
 
-# Expose VU-Server API port. Supervisor uses the config.yaml `watchdog` URL for
-# health monitoring; Docker HEALTHCHECK is ignored by Supervisor.
+# Expose VU-Server API port
 EXPOSE 5340
+
+# Health check on the unauthenticated / endpoint (the add-on schema's `watchdog`
+# key is obsolete; Supervisor consumes the native Docker HEALTHCHECK)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
+    CMD curl -sf http://127.0.0.1:5340/ || exit 1

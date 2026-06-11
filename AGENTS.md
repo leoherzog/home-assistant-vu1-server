@@ -75,15 +75,15 @@ python3 make_version.py
 | `homeassistant` | `"2024.4.0"` | Minimum HA version required |
 | `ingress` | `true` | Exposes the Web UI through the HA ingress proxy (port 8099 internally) |
 | `ports` / `ports_description` | `"5340/tcp": null` | Optional host-port mapping for the VU-Server API (unmapped by default) |
-| `watchdog` | `http://[HOST]:[PORT:5340]/` | Supervisor health check; restarts the add-on if the endpoint stops responding |
 | `uart` | `true` | Grants access to host UART/serial devices for the VU1 hub |
 | `udev` | `true` | Mounts the host udev database for reliable USB-serial detection |
 | `backup_exclude` | `["vu-server/upload/tmp_*"]` | Excludes temp upload files from backups (uploaded dial images **are** backed up) |
 | `options` / `schema` | `log_level` | User-configurable: debug, info, warning, error |
 
-There is no `usb`, `ingress_stream`, or `ingress_entry` key — these were removed.
-Health monitoring is done by Supervisor via the `watchdog` URL above; there is no
-Docker `HEALTHCHECK` in the image (Supervisor ignores it).
+There is no `usb`, `ingress_stream`, `ingress_entry`, or `watchdog` key — the
+first three were removed, and `watchdog` is obsolete in the current add-on schema.
+Health monitoring is done via the Docker `HEALTHCHECK` in the Dockerfile (curl
+against the unauthenticated `/` endpoint).
 
 ### Key Files
 
@@ -104,7 +104,7 @@ Docker `HEALTHCHECK` in the image (Supervisor ignores it).
 - **`finish.sh`** - s6-overlay v3 `finish` script
   - Runs when the `vu-server` service exits. By default s6 restarts a dying
     `run` forever; this records the real exit code and **halts the container**
-    instead, handing control back to Supervisor's restart policy / watchdog so a
+    instead, handing control back to Supervisor's restart policy so a
     fatal exit doesn't crash-loop invisibly.
 - **`ingress_proxy.py`** - HTTP proxy for Home Assistant ingress (Web UI only)
   - Multi-threaded `ThreadedTCPServer`, `HTTP/1.1` (keep-alive), 30-second
@@ -123,8 +123,9 @@ Docker `HEALTHCHECK` in the image (Supervisor ignores it).
   - Stage 3 is the slim runtime (python3 + curl); symlinks `config.yaml`,
     `vudials.db`, and `upload/` to `/data/vu-server/` so they persist across
     updates and are included in backups
-  - Installs the s6 `run` + `finish` services and `EXPOSE 5340`. There is **no**
-    Docker `HEALTHCHECK`; Supervisor health is driven by the `config.yaml` `watchdog` URL.
+  - Installs the s6 `run` + `finish` services, `EXPOSE 5340`, and a Docker
+    `HEALTHCHECK` against the unauthenticated `/` endpoint (the add-on schema's
+    `watchdog` key is obsolete; Supervisor consumes the native HEALTHCHECK).
 - **`apparmor.txt`** - AppArmor profile for the add-on (serial/`/dev/tty*` access,
   network, s6 + `/data` + `/opt` paths).
 - **`translations/en.yaml`** - Supervisor UI labels/descriptions for the
