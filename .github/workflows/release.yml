@@ -4,28 +4,87 @@ on:
   release:
     types: [published]
 
-env:
-  VERSION: ${{ github.event.release.tag_name }}
-
 jobs:
-  build:
-    name: Build and publish add-on
+  verify:
+    name: Verify version matches tag
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      version: ${{ steps.check.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check config.yaml version matches the git tag
+        id: check
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          CONFIG_VERSION="$(grep -E '^version:' vu-server-addon/config.yaml \
+            | sed -E 's/^version:[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/')"
+          echo "Git tag (stripped): ${TAG}"
+          echo "config.yaml version: ${CONFIG_VERSION}"
+          if [ "${TAG}" != "${CONFIG_VERSION}" ]; then
+            echo "::error::Git tag (${TAG}) does not match config.yaml version (${CONFIG_VERSION}). Bump config.yaml before tagging."
+            exit 1
+          fi
+          echo "version=${TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push add-on
-        uses: home-assistant/builder@master
+  prepare:
+    name: Prepare build matrix
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Prepare multi-arch matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.03.2
         with:
-          args: --target vu-server-addon --amd64 --aarch64 --version "${VERSION#v}"
+          architectures: '["amd64", "aarch64"]'
+          image-name: vu-server-addon
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: [verify, prepare]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push add-on image
+        uses: home-assistant/builder/actions/build-image@2026.03.2
+        with:
+          arch: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+          context: ./vu-server-addon
+          version: ${{ needs.verify.outputs.version }}
+          image-tags: |
+            ${{ needs.verify.outputs.version }}
+            latest
+          push: "true"
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Publish multi-arch manifest
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Publish multi-arch manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.03.2
+        with:
+          architectures: '["amd64", "aarch64"]'
+          image-name: vu-server-addon
+          image-tags: |
+            ${{ needs.verify.outputs.version }}
+            latest
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}

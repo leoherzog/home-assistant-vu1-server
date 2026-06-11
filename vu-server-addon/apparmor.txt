@@ -1,0 +1,44 @@
+#include <tunables/global>
+
+profile vu-server-addon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  file,
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # Network access (ingress proxy + VU-Server API)
+  network,
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/lib/bashio/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/s6-overlay/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio / shell helpers
+  /tmp/** rwk,
+
+  # Add-on persistent data and options
+  /data/** rw,
+
+  # VU-Server application (venv + source)
+  /opt/** rwix,
+
+  # Serial device access for the VU1 hub (FTDI USB serial)
+  /dev/ttyACM[0-9]* rw,
+  /dev/ttyUSB[0-9]* rw,
+  /dev/serial/** rw,
+  /sys/devices/** r,
+  /sys/class/tty/** r,
+  /run/udev/data/** r,
+}
