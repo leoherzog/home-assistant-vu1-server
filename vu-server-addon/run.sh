@@ -40,10 +40,29 @@ if [ ! -d "/data/vu-server" ]; then
     mkdir -p /data/vu-server
 fi
 
-# Copy default config.yaml to persistent storage if it doesn't exist
+# Ensure the persistent upload directory exists (dial-face images live here)
+mkdir -p /data/vu-server/upload
+
+# Copy default config.yaml to persistent storage if it doesn't exist.
+# This branch runs ONLY on the very first boot of a fresh install; existing
+# installs keep their already-persisted config (and master key) untouched.
 if [ ! -f "/data/vu-server/config.yaml" ]; then
     bashio::log.info "Initializing default config.yaml in persistent storage..."
     cp /opt/vu-server/config.yaml.default /data/vu-server/config.yaml
+
+    # Generate a unique master key for this installation. The upstream default
+    # (cTpAWYuRpA2zx75Yh961Cg) is public on GitHub, so shipping it would give
+    # every install the same admin key. Only rotate on first init so existing
+    # installs are never affected.
+    MASTER_KEY=$(head -c 16 /dev/urandom | base64 | tr -d '=+/')
+    if sed -i "s|master_key:.*|master_key: ${MASTER_KEY}|" /data/vu-server/config.yaml; then
+        bashio::log.info "Generated a unique master key for this installation."
+        bashio::log.info "Master key (shown once): ${MASTER_KEY}"
+        bashio::log.info "Open the Web UI, unlock with this key, and create an API key for the Home Assistant integration."
+        bashio::log.info "The key is also stored in /data/vu-server/config.yaml inside the add-on."
+    else
+        bashio::log.error "Failed to write generated master key; the server will fall back to the default key."
+    fi
 else
     bashio::log.info "Using existing persistent config.yaml"
 fi
@@ -75,23 +94,27 @@ if ! sed -i "/^server:/,/^[^[:space:]]/ s/port: [0-9]*/port: ${PORT}/" config.ya
     exit 1
 fi
 
-# Configure hardware port to avoid auto-detection issues
-bashio::log.info "Configuring hardware port..."
-# Try to find the VU1 device - look for common USB serial devices
-HARDWARE_PORT=""
+# Hardware port: let upstream auto-detect the VU1 hub by its FTDI VID/PID
+# (VID 0403 / PID 6015). find_gauge_hub() only runs when hardware.port is
+# empty, so picking the first ttyACM*/ttyUSB* (often a Zigbee/Z-Wave stick)
+# would both grab the wrong device AND disable correct auto-detection.
+bashio::log.info "Configuring hardware port (relying on upstream FTDI auto-detection)..."
+
+# Informational: list USB serial devices visible to the add-on.
 for device in /dev/ttyACM* /dev/ttyUSB*; do
-    if [ -e "$device" ]; then
-        bashio::log.info "Found potential device: $device"
-        HARDWARE_PORT="$device"
-        break
-    fi
+    [ -e "$device" ] && bashio::log.info "Detected USB serial device: $device"
 done
 
-if [ -n "$HARDWARE_PORT" ]; then
-    bashio::log.info "Setting hardware port to: $HARDWARE_PORT"
-    sed -i "/^hardware:/,/^[^[:space:]]/ s|port:.*|port: $HARDWARE_PORT|" config.yaml
+# Clear a stale persisted hardware.port if it points at a device that is gone,
+# otherwise upstream would try (and fail) to open it instead of auto-detecting.
+PERSISTED_PORT=$(sed -n '/^hardware:/,/^[^[:space:]]/ s/^[[:space:]]*port:[[:space:]]*//p' config.yaml | head -n1)
+if [ -n "$PERSISTED_PORT" ] && [ ! -e "$PERSISTED_PORT" ]; then
+    bashio::log.warning "Persisted hardware port '$PERSISTED_PORT' no longer exists; clearing it so auto-detection can run."
+    sed -i "/^hardware:/,/^[^[:space:]]/ s|port:.*|port:|" config.yaml
+elif [ -n "$PERSISTED_PORT" ]; then
+    bashio::log.info "Using explicitly configured hardware port: $PERSISTED_PORT"
 else
-    bashio::log.info "No hardware port found, leaving empty for auto-detection"
+    bashio::log.info "hardware.port is empty; upstream will auto-detect the VU1 hub."
 fi
 
 # Verify Python environment
@@ -153,7 +176,10 @@ error_monitor() {
         kill -0 $VU_SERVER_PID 2>/dev/null || return 0
 
         local count
-        count=$(grep -c "OSError.*I/O error" "$LOG_FILE" 2>/dev/null || echo 0)
+        # grep -c always prints a count (0 on no match) but exits non-zero when
+        # nothing matches; `|| true` keeps the "0" without appending a second one.
+        count=$(grep -c "OSError.*I/O error" "$LOG_FILE" 2>/dev/null || true)
+        count=${count:-0}
         if [ "$count" -ge "$ERROR_THRESHOLD" ]; then
             bashio::log.error "Detected $count I/O errors in server log, triggering restart..."
             kill -TERM $VU_SERVER_PID 2>/dev/null
@@ -210,7 +236,7 @@ cleanup() {
     fi
 
     # Also kill any lingering processes by name (fallback)
-    pkill -f "python3.*ingress_proxy.py" 2>/dev/null || true
+    pkill -f "python.*ingress_proxy.py" 2>/dev/null || true
     pkill -f "python.*server.py" 2>/dev/null || true
 
     rm -f "$LOG_FILE"
