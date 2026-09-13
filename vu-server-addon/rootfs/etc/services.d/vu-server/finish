@@ -1,0 +1,3 @@
+#!/bin/sh
+# Upstream exits 0 on every failure (e.g. no hub), so let s6 restart it, throttled.
+[ "$1" = 256 ] || sleep 3

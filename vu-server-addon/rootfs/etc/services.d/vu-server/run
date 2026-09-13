@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv bashio
+cd /opt/vu-server || exit 1
+# Upstream never reopens a failed serial port, so restart it after repeated EIO.
+venv/bin/python server.py --logging "$(bashio::config log_level)" 2>&1 |
+  awk '{ print; fflush() } /\[Errno 5\]/ && ++n == 3 { system("pkill -f \"[s]erver.py\"") }'

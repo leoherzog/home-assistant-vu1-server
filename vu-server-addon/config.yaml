@@ -17,7 +17,6 @@ ports_description:
   "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
 ingress: true
 uart: true
-udev: true
 backup_exclude:
   - "vu-server/upload/tmp_*"
 options:
