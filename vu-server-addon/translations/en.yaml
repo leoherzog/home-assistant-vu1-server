@@ -2,6 +2,5 @@ configuration:
   log_level:
     name: Log level
     description: >-
-      Controls the verbosity of the VU-Server logs shown in this add-on's log
-      tab. Use "debug" when troubleshooting serial/hardware detection, and
-      "info" (the default) for normal operation.
+      VU-Server log verbosity: "info" (default) or "debug" for troubleshooting
+      hub detection.
