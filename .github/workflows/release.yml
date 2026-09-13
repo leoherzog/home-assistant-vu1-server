@@ -12,7 +12,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check config.yaml version matches the git tag
         id: check
@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Prepare multi-arch matrix
         id: matrix
-        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.03.2
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.06.0
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: vu-server-addon
@@ -55,15 +55,20 @@ jobs:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build and push add-on image
-        uses: home-assistant/builder/actions/build-image@2026.03.2
+        uses: home-assistant/builder/actions/build-image@2026.06.0
         with:
           arch: ${{ matrix.arch }}
           image: ${{ matrix.image }}
           context: ./vu-server-addon
           version: ${{ needs.verify.outputs.version }}
+          labels: |
+            io.hass.name=VU-Server
+            io.hass.description=Runs the Streacom VU1 Server for controlling VU1 dials
+            io.hass.type=app
+            io.hass.url=https://github.com/leoherzog/home-assistant-vu1-server
           image-tags: |
             ${{ needs.verify.outputs.version }}
             latest
@@ -80,7 +85,7 @@ jobs:
       id-token: write
     steps:
       - name: Publish multi-arch manifest
-        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.03.2
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.06.0
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: vu-server-addon
