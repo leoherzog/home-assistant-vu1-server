@@ -1,199 +1,51 @@
 # AGENTS.md
 
-This file provides guidance to Claude Code, Codex, Gemini, etc when working with code in this repository.
+Guidance for coding agents working in this repository.
 
-## Project Overview
+## Overview
 
-This is a **Home Assistant Add-on** for the **VU-Server** that controls **Streacom VU1 Dynamic Analogue Dials** - physical USB-connected VU meters with eInk screens. The project has two main components:
+A Home Assistant app that runs upstream [VU-Server](https://github.com/SasaKaranovic/VU-Server) for Streacom VU1 dials.
 
-1. **VU-Server Core** (`/vu-server/`) - Python Tornado server with REST API (Git submodule)
-2. **Home Assistant Add-on** (`/vu-server-addon/`) - Docker container wrapper
+- `vu-server/`: upstream git submodule, for reference only.
+- `vu-server-addon/`: the app.
 
-**IMPORTANT**: The `/vu-server/` directory is a **Git submodule** pointing to the upstream VU-Server repository (`https://github.com/SasaKaranovic/VU-Server.git`). Do NOT modify files within this directory as they are managed by the upstream project. All Home Assistant add-on specific changes should be made in `/vu-server-addon/` only.
+**Do not modify** `vu-server/`. The upstream source must run unmodified; all wrapper behaviour lives in `vu-server-addon/`.
 
-**Note**: The Dockerfile clones the upstream source by **immutable commit SHA** (`a2a7d2489bdc3059117c6c401e5e68d75577434d`, the commit behind upstream tag `v20240329`) directly from GitHub rather than using the local submodule. The submodule exists for development reference only.
+## Upstream pin
 
-## Development Commands
+The Dockerfile fetches upstream by commit SHA. That SHA must equal the `vu-server` submodule gitlink (`git ls-tree HEAD vu-server`), and CI (`.github/workflows/main.yml`) checks this. To bump upstream, update the submodule and the Dockerfile ref together.
 
-### Running VU-Server from Source
+## Layout (`vu-server-addon/`)
+
+| Path | Role |
+|---|---|
+| `Dockerfile` | Built on `ghcr.io/home-assistant/base`. Adds pinned upstream, a Python venv from wheels only, and nginx. Symlinks `config.yaml`, `vudials.db` and `upload/` into `/data/vu-server/`. `HEALTHCHECK` on `:5340/`. |
+| `rootfs/etc/cont-init.d/vu-server.sh` | Runs once before services. Creates `/data/vu-server/upload`, restores `img_blank`, and copies upstream's default `config.yaml` if none exists. The Web UI hardcodes upstream's default master key, so the app never changes it. |
+| `rootfs/etc/services.d/vu-server/run` | Runs `server.py --logging <log_level>`. Kills the server after 3 `[Errno 5]` lines, because upstream never reopens a failed serial port. |
+| `rootfs/etc/services.d/vu-server/finish` | Lets s6 restart the server, sleeping 3 s after a non-signal exit, because upstream exits 0 on every failure. |
+| `rootfs/etc/services.d/nginx/run` | Execs nginx. |
+| `rootfs/etc/nginx/nginx.conf` | Ingress on 8099, only from `172.30.32.2`. Proxies to `127.0.0.1:5340` and rewrites root-absolute URLs with `sub_filter`. Access log is off because query strings carry keys. |
+| `config.yaml` | `init: false`, `ingress`, `uart`, optional `5340/tcp` mapping, `log_level: list(debug\|info)` (upstream supports only these two), `stage: experimental` (the store shows an Experimental warning badge). |
+| `apparmor.txt` | Broad file and network access (intentional), Docker's default deny rules, signal receive from `runc`/`crun` so stop delivers SIGTERM, and the capabilities nginx needs. |
+| `translations/en.yaml`, `README.md`, `CHANGELOG.md` | Option labels, store page and changelog. |
+
+Health: when `HEALTHCHECK` fails, Docker marks the container unhealthy; Supervisor restarts the app on that only if the user turns on the app's Watchdog toggle.
+
+## Integration
+
+The companion [home-assistant-vu1-devices](https://github.com/leoherzog/home-assistant-vu1-devices) integration discovers the app through Supervisor and connects to `<hostname>:5340` directly, not through ingress. The user supplies only an API key, created in the Web UI under **API Keys**.
+
+## Lint and release
+
+CI runs `frenck/action-app-linter` on `vu-server-addon`. To run it locally:
+
 ```bash
-# Install dependencies (run once)
-cd vu-server
-pip3 install -r requirements.txt
-
-# Start server
-python3 server.py --logging info
-
-# Start with debug logging
-python3 server.py --logging debug
-```
-
-### Add-on Development
-```bash
-# Build Docker image (from vu-server-addon directory)
-docker build -t vu-server-addon .
-
-# Run add-on linter locally
-cd /tmp && git clone --depth 1 https://github.com/frenck/action-addon-linter.git
-cd action-addon-linter/src
+cd /tmp && git clone --depth 1 https://github.com/frenck/action-app-linter.git
+cd action-app-linter/src
 uv venv .venv && source .venv/bin/activate && uv pip install jsonschema pyyaml
 cp *.schema.json /tmp/
 sed 's|/config.schema.json|/tmp/config.schema.json|g' lint.py > lint_local.py
-INPUT_PATH="/path/to/vu-server-addon" INPUT_COMMUNITY="false" python3 lint_local.py
+INPUT_PATH="/path/to/vu-server-addon" INPUT_COMMUNITY="false" python lint_local.py
 ```
 
-> The add-on has no `build.json` (per-arch base tags are deprecated). The base
-> image is selected via the `Dockerfile` `ARG BUILD_FROM` default, and CI builds
-> use the composable `home-assistant/builder` actions (see `.github/workflows/release.yml`).
-
-### Release / CI
-
-`release.yml` runs on a published GitHub release. A `verify` job first asserts
-the git tag (minus a leading `v`) equals the `version:` in `vu-server-addon/config.yaml`
-and fails the release otherwise. The build then uses the composable
-`home-assistant/builder` actions (`prepare-multi-arch-matrix`, `build-image`,
-`publish-multi-arch-manifest`, all pinned to `@2026.03.2`) to build and push the
-`amd64`/`aarch64` images and multi-arch manifest to GHCR.
-
-### Code Quality
-```bash
-# Run pylint (from vu-server directory)
-pylint *.py dials/*.py
-
-# Generate version info
-python3 make_version.py
-```
-
-## Home Assistant Add-on (`/vu-server-addon/`)
-
-### Configuration (`config.yaml`)
-
-| Option | Value | Description |
-|--------|-------|-------------|
-| `version` | `"0.4.0"` | Add-on version (must match the git tag on release — enforced by CI) |
-| `stage` | `experimental` | Deliberately experimental; the add-on is hidden in the store unless non-stable stages are enabled |
-| `homeassistant` | `"2024.4.0"` | Minimum HA version required |
-| `ingress` | `true` | Exposes the Web UI through the HA ingress proxy (port 8099 internally) |
-| `ports` / `ports_description` | `"5340/tcp": null` | Optional host-port mapping for the VU-Server API (unmapped by default) |
-| `uart` | `true` | Grants access to host UART/serial devices for the VU1 hub |
-| `udev` | `true` | Mounts the host udev database for reliable USB-serial detection |
-| `backup_exclude` | `["vu-server/upload/tmp_*"]` | Excludes temp upload files from backups (uploaded dial images **are** backed up) |
-| `options` / `schema` | `log_level` | User-configurable: debug, info, warning, error |
-
-There is no `usb`, `ingress_stream`, `ingress_entry`, or `watchdog` key — the
-first three were removed, and `watchdog` is obsolete in the current add-on schema.
-Health monitoring is done via the Docker `HEALTHCHECK` in the Dockerfile (curl
-against the unauthenticated `/` endpoint).
-
-### Key Files
-
-- **`run.sh`** - Startup script
-  - Reads user options via `bashio::config` (log_level)
-  - **On first init only** (when `/data/vu-server/config.yaml` does not yet exist):
-    copies the default config, then generates a **random master key**
-    (`head -c 16 /dev/urandom | base64 | tr -d '=+/'`), writes it into
-    `/data/vu-server/config.yaml` with `sed`, and logs it **once** via
-    `bashio::log.info`. Existing installs are never re-keyed. If the `sed` write
-    fails it logs an error and the server falls back to the upstream default key.
-  - Does **not** pick a serial port by first-match — it leaves `hardware.port`
-    empty so upstream's FTDI VID/PID (`0403:6015`) auto-detection (`find_gauge_hub()`)
-    runs. It only lists visible `/dev/ttyACM*`/`/dev/ttyUSB*` devices for info, and
-    clears a stale persisted `hardware.port` that points at a now-missing device.
-  - Supervises VU-Server with a restart budget, an I/O-error monitor, and the
-    ingress proxy; manages graceful shutdown with signal traps.
-- **`finish.sh`** - s6-overlay v3 `finish` script
-  - Runs when the `vu-server` service exits. By default s6 restarts a dying
-    `run` forever; this records the real exit code and **halts the container**
-    instead, handing control back to Supervisor's restart policy so a
-    fatal exit doesn't crash-loop invisibly.
-- **`ingress_proxy.py`** - HTTP proxy for Home Assistant ingress (Web UI only)
-  - Multi-threaded `ThreadedTCPServer`, `HTTP/1.1` (keep-alive), 30-second
-    upstream timeout
-  - Accepts requests **only** from the Supervisor ingress gateway (`172.30.32.2`)
-    and loopback; everything else gets `403`
-  - Forwards backend non-2xx responses (JSON error bodies, 304s) and 3xx
-    redirects verbatim, rewriting `Location` to stay inside the ingress mount
-  - Rewrites HTML/JS URLs for ingress compatibility; responses are fully buffered
-    (no streaming — this is why the `ingress_stream` option was removed)
-- **`Dockerfile`** - Multi-stage Alpine build with `ARG BUILD_FROM=ghcr.io/home-assistant/base:3.23`
-  (default lets a plain `docker build` work since Supervisor no longer injects
-  `BUILD_FROM`)
-  - Stage 1 clones upstream VU-Server by **immutable commit SHA** (`VU_SERVER_REF`)
-  - Stage 2 builds the Python venv with the full toolchain (none lands in runtime)
-  - Stage 3 is the slim runtime (python3 + curl); symlinks `config.yaml`,
-    `vudials.db`, and `upload/` to `/data/vu-server/` so they persist across
-    updates and are included in backups
-  - Installs the s6 `run` + `finish` services, `EXPOSE 5340`, and a Docker
-    `HEALTHCHECK` against the unauthenticated `/` endpoint (the add-on schema's
-    `watchdog` key is obsolete; Supervisor consumes the native HEALTHCHECK).
-- **`apparmor.txt`** - AppArmor profile for the add-on (serial/`/dev/tty*` access,
-  network, s6 + `/data` + `/opt` paths).
-- **`translations/en.yaml`** - Supervisor UI labels/descriptions for the
-  `log_level` option.
-
-### Custom Integration Setup
-
-The companion [home-assistant-vu1-devices](https://github.com/leoherzog/home-assistant-vu1-devices)
-integration **auto-discovers this add-on** via the Supervisor `/addons` API (it
-matches the `vu-server-addon` slug, then reads the add-on's stable DNS
-**hostname** and connects directly to `hostname:5340`). The integration's ingress
-proxy is **not** used for the API — API clients bypass it. Only the **API key**
-is entered manually.
-
-| Field | Value | Notes |
-|-------|-------|-------|
-| Host/Port | Auto-discovered | DNS hostname + `5340`, filled in by the config flow; manual entry is the fallback when not running under Supervisor |
-| API Key | Manual | The only field the user supplies |
-
-**Where the API key comes from:**
-1. Open the VU-Server Web UI (click "Open Web UI" on the add-on page).
-2. Unlock with the **master key** (printed once in the add-on log on first start,
-   and stored in `/data/vu-server/config.yaml`).
-3. Go to Settings → API Keys and create/copy a key for Home Assistant. (The
-   master key itself also works and is required for the `provision` admin endpoint.)
-
-## VU-Server Core (`/vu-server/` - Do Not Modify)
-
-### Components
-
-| File | Purpose |
-|------|---------|
-| `server.py` | Main Tornado web server (port 5340) with REST API |
-| `dial_driver.py` | Low-level serial communication with VU1 hardware |
-| `server_dial_handler.py` | High-level dial management and periodic updates |
-| `server_config.py` | Configuration management (YAML + SQLite) |
-| `database.py` | SQLite database for dials, API keys, settings |
-
-### REST API (`/api/v0/`)
-
-- **Dial Control**: `/dial/{uid}/set?value={0-100}`, `/dial/{uid}/setRaw?value={raw}`
-- **Hardware**: `/dial/{uid}/backlight?red={}&green={}&blue={}`, `POST /dial/{uid}/image/set`
-- **Administration**: `/dial/provision`, `/dial/{uid}/name?name={}`, `/dial/{uid}/calibrate?value={}`
-- **API Keys**: `/admin/keys/list`, `POST /admin/keys/create`, `POST /admin/keys/update`
-
-### Web Interface
-
-- **Location**: `/vu-server/www/`
-- **Framework**: Tabler dashboard template with jQuery
-- **Entry Point**: `index.html`
-
-### Authentication
-
-- Master key system with configurable API keys
-- Granular permissions per dial UID
-- Health check endpoint `/` requires no authentication
-
-## Hardware Requirements
-
-- **Streacom VU1 Dynamic Analogue Dials** connected via USB
-- **USB-to-serial drivers** for device communication
-- **Linux permissions** for `/dev/ttyUSB*` or `/dev/ttyACM*` access
-
-## Dependencies
-
-- **tornado** - Web server framework
-- **pyserial** - Serial communication
-- **pillow** - Image processing for dial backgrounds
-- **pyyaml/ruamel.yaml** - Configuration parsing
-- **numpy** - Numerical operations
-- **requests** - HTTP client library
+`release.yml` runs when a GitHub release is published. It checks that the tag (without a leading `v`) equals `version:` in `config.yaml`, then builds amd64 and aarch64 with the `home-assistant/builder` actions and publishes `ghcr.io/leoherzog/vu-server-addon`. Update `CHANGELOG.md` with each version bump.

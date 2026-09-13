@@ -1,4 +1,4 @@
-name: Home Assistant Add-on CI
+name: Home Assistant App CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   lint:
-    name: Add-On Linter
+    name: App Linter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -15,7 +15,7 @@ jobs:
       - name: Upstream pin matches vu-server submodule
         run: grep -q "VU-Server.git#$(git ls-tree HEAD vu-server | awk '{print $3}') " vu-server-addon/Dockerfile
 
-      - name: Home Assistant Add-on Linter
+      - name: Home Assistant App Linter
         uses: frenck/action-app-linter@v2
         with:
           path: './vu-server-addon'
