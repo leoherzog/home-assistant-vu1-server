@@ -19,12 +19,12 @@ The Dockerfile fetches upstream by commit SHA. That SHA must equal the `vu-serve
 
 | Path | Role |
 |---|---|
-| `Dockerfile` | Built on `ghcr.io/home-assistant/base`. Adds pinned upstream, a Python venv from wheels only, and nginx. Symlinks `config.yaml`, `vudials.db` and `upload/` into `/data/vu-server/`. `HEALTHCHECK` on `:5340/`. |
-| `rootfs/etc/cont-init.d/vu-server.sh` | Runs once before services. Creates `/data/vu-server/upload`, restores `img_blank`, and copies upstream's default `config.yaml` if none exists. The Web UI hardcodes upstream's default master key, so the app never changes it. |
-| `rootfs/etc/services.d/vu-server/run` | Runs `server.py --logging <log_level>`. Kills the server after 3 `[Errno 5]` lines, because upstream never reopens a failed serial port. |
+| `Dockerfile` | Built on `ghcr.io/home-assistant/base`. Adds pinned upstream, a Python venv from wheels only (upstream's pinned requirements minus `pyinstaller`), and nginx. Symlinks `config.yaml`, `vudials.db` and `upload/` into `/data/vu-server/`. `S6_KILL_GRACETIME=6000` because server.py gets SIGTERM only in s6's final kill-all and exits 3 s later; `S6_SERVICES_GRACETIME=1000` bounds a stop that lands in the finish throttle. `HEALTHCHECK` on `:5340/`. |
+| `rootfs/etc/cont-init.d/vu-server.sh` | Runs before services on every start. Creates `/data/vu-server/upload`, restores `img_blank`, copies upstream's default `config.yaml` if none exists, and blanks `server.hostname` if it has a value. Upstream binds to that address, defaults it to `localhost`, and treats empty as all interfaces. The key must stay, or upstream falls back to its built-in defaults, including port 3000. The Web UI hardcodes upstream's default master key, so the app never changes it. |
+| `rootfs/etc/services.d/vu-server/run` | Runs `server.py --logging <log_level>`. Redacts key values, because Tornado logs failed requests with their query strings. Kills the server after 3 `[Errno 5]` lines, because upstream never reopens a failed serial port. awk ignores SIGTERM so upstream's shutdown lines reach the log. |
 | `rootfs/etc/services.d/vu-server/finish` | Lets s6 restart the server, sleeping 3 s after a non-signal exit, because upstream exits 0 on every failure. |
 | `rootfs/etc/services.d/nginx/run` | Execs nginx. |
-| `rootfs/etc/nginx/nginx.conf` | Ingress on 8099, only from `172.30.32.2`. Proxies to `127.0.0.1:5340` and rewrites root-absolute URLs with `sub_filter`. Access log is off because query strings carry keys. |
+| `rootfs/etc/nginx/nginx.conf` | Ingress on 8099, only from `172.30.32.2`. Proxies to `127.0.0.1:5340` and rewrites root-absolute URLs with `sub_filter`. Also appends the master key to the dial page's `image/get` request, which upstream's Web UI sends without one. Access log is off because query strings carry keys. |
 | `config.yaml` | `init: false`, `ingress`, `uart`, optional `5340/tcp` mapping, `log_level: list(debug\|info)` (upstream supports only these two), `stage: experimental` (the store shows an Experimental warning badge). |
 | `apparmor.txt` | Broad file and network access (intentional), Docker's default deny rules, signal receive from `runc`/`crun` so stop delivers SIGTERM, and the capabilities nginx needs. |
 | `translations/en.yaml`, `README.md`, `CHANGELOG.md` | Option labels, store page and changelog. |
@@ -33,11 +33,11 @@ Health: when `HEALTHCHECK` fails, Docker marks the container unhealthy; Supervis
 
 ## Integration
 
-The companion [home-assistant-vu1-devices](https://github.com/leoherzog/home-assistant-vu1-devices) integration discovers the app through Supervisor and connects to `<hostname>:5340` directly, not through ingress. The user supplies only an API key, created in the Web UI under **API Keys**.
+The companion [home-assistant-vu1-devices](https://github.com/leoherzog/home-assistant-vu1-devices) integration discovers the app through Supervisor and connects to `<hostname>:5340` directly, not through ingress. That works only because cont-init blanks `server.hostname`; ingress and `HEALTHCHECK` use loopback and would not notice a loopback-only bind. The user supplies only an API key, created in the Web UI under **API Keys**.
 
 ## Lint and release
 
-CI runs `frenck/action-app-linter` on `vu-server-addon`. To run it locally:
+CI checks the upstream pin and runs `frenck/action-app-linter` on `vu-server-addon`. A smoke job builds the amd64 image and starts it with `.github/fake-hub.py`, a pty hub with no dials, as entrypoint. It checks that another container reaches `:5340`, that logged keys are redacted, and that every nginx `sub_filter` pattern still occurs in upstream's Web UI. To run the linter locally:
 
 ```bash
 cd /tmp && git clone --depth 1 https://github.com/frenck/action-app-linter.git
