@@ -19,3 +19,47 @@ jobs:
         uses: frenck/action-app-linter@v2
         with:
           path: './vu-server-addon'
+
+  smoke:
+    name: Container Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build amd64 image
+        run: docker build -t vu-server-addon vu-server-addon
+
+      # The integration connects from another container, which HEALTHCHECK and ingress cannot show because both use loopback.
+      # Supervisor is absent, so bashio's log_level lookup fails and upstream falls back to info.
+      - name: API answers another container on port 5340
+        run: |
+          docker network create smoke
+          docker create --name vu --network smoke --entrypoint python3 vu-server-addon /fake-hub.py
+          docker cp .github/fake-hub.py vu:/fake-hub.py
+          docker start vu
+          docker run --rm --network smoke --entrypoint curl vu-server-addon \
+            -sSf -o /dev/null --retry 30 --retry-delay 2 --retry-all-errors http://vu:5340/
+
+      - name: Logged keys are redacted
+        run: |
+          docker exec vu curl -s -o /dev/null 'http://127.0.0.1:5340/api/v0/dial/list?key=smoke-secret'
+          docker exec vu curl -s -o /dev/null 'http://127.0.0.1:5340/api/v0/dial/list?key=%FFsmoke-secret'
+          sleep 1
+          docker logs vu 2>&1 | grep -q 'key=REDACTED'
+          if docker logs vu 2>&1 | grep smoke-secret; then exit 1; fi
+
+      # A sub_filter whose pattern upstream no longer contains is a silent no-op.
+      - name: nginx sub_filter patterns occur in upstream's Web UI
+        run: |
+          docker exec vu python3 -c '
+          import pathlib, re
+          www = "".join(p.read_text(errors="replace") for p in pathlib.Path("/opt/vu-server/www").rglob("*") if p.suffix in (".js", ".html"))
+          conf = pathlib.Path("/etc/nginx/nginx.conf").read_text()
+          patterns = [m[1:-1] for m in re.findall(r"^\s*sub_filter\s+(\x27[^\x27]*\x27|\"[^\"]*\")", conf, re.M)]
+          missing = [p for p in patterns if p not in www]
+          print(len(patterns), "patterns, missing:", missing)
+          raise SystemExit(bool(missing) or not patterns)'
+
+      - name: App log
+        if: failure()
+        run: docker logs vu
