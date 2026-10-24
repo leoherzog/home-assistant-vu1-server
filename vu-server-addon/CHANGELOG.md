@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Updated VU-Server to upstream commit `485df4e`.
+- The dial page now shows the dial's image on a mapped port too. Upstream sends the key itself, so the app no longer adds it under ingress.
+- Fixed upstream: renaming an API key is saved and takes effect without a restart, and dial names with special characters rename correctly.
+- Fixed upstream: a failed calibration reports an error, and unknown API paths return a JSON 404.
+- Fixed upstream: uploading an unchanged dial image no longer leaves a temporary file behind.
+- The image no longer includes `requests` or `pyyaml`.
+
 ## 0.6.0
 
 - Updated VU-Server to upstream `v20260918`.
