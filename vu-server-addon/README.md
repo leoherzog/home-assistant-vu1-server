@@ -4,7 +4,7 @@ Runs [VU-Server](https://github.com/SasaKaranovic/VU-Server) to control Streacom
 
 ## What the app changes
 
-The upstream source runs unmodified. On every start the app clears `server.hostname` in `/data/vu-server/config.yaml`, so the API listens on all interfaces and the integration can reach it. nginx rewrites a handful of absolute URLs so the Web UI works under ingress, and adds the key that the dial page's image request omits. Keys in logged request URLs are redacted.
+The upstream source runs unmodified. On every start the app clears `server.hostname` in `/data/vu-server/config.yaml`, so the API listens on all interfaces and the integration can reach it. nginx rewrites a handful of absolute URLs so the Web UI works under ingress. Keys in logged request URLs are redacted.
 
 ## Configuration
 
@@ -16,7 +16,7 @@ The upstream source runs unmodified. On every start the app clears `server.hostn
 2. Click **Open Web UI**, then **API Keys** in the top bar, and create a key with the dials you want in Home Assistant.
 3. Paste the key into the companion integration. It discovers the host and port by itself.
 
-Open the Web UI through ingress. On a mapped port it loads too, but the dial page cannot show the dial's image. For programmatic access, use the companion integration, which reaches the API on the internal network at port `5340`.
+Open the Web UI through ingress, or on a mapped port. For programmatic access, use the companion integration, which reaches the API on the internal network at port `5340`.
 
 ### Master key
 

@@ -5,7 +5,7 @@ FROM $BUILD_FROM
 RUN apk add --no-cache python3 nginx
 
 # Must equal the vu-server submodule commit (CI checks this).
-ADD https://github.com/SasaKaranovic/VU-Server.git#c2e5b475e6c9f11fbfcd612e6f53c691c1449fbe /opt/vu-server
+ADD https://github.com/SasaKaranovic/VU-Server.git#485df4e4eda22bf328105e601566dd712c35de0b /opt/vu-server
 
 WORKDIR /opt/vu-server
 # pyinstaller only builds upstream's desktop bundles.
