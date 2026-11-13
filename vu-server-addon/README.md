@@ -20,7 +20,7 @@ Open the Web UI through ingress, or on a mapped port. For programmatic access, u
 
 ### Master key
 
-The app uses upstream's default master key, stored in `/data/vu-server/config.yaml`. The Web UI has this key built in and needs it to list dials and manage API keys, so do not change it. VU-Server logs the master key at every start and each key it creates. At `debug` it also logs the key in each key update and any unknown admin key, so treat the app log as secret.
+The app uses upstream's default master key, stored in `/data/vu-server/config.yaml`. The Web UI has this key built in and needs it to list dials and manage API keys, so do not change it. VU-Server logs the master key at every start and each key it creates. At `debug` it also logs the key in each key update and any unknown admin key, so treat the app log as secret. Upstream also writes an unredacted log to `/root/KaranovicResearch/vudials/server.log` inside the container. That file is outside `/data` and is not in backups.
 
 ## Security
 
@@ -29,9 +29,18 @@ The app uses upstream's default master key, stored in `/data/vu-server/config.ya
 - A key you issue sees and controls only the dials granted to it under **API Keys**. Dials added later must be granted explicitly. A key keeps at least one dial, so to revoke its last one, delete the key.
 - Mapping `5340` to a host port (under **Network** on the app's configuration page) exposes all of the above to your LAN.
 
+## Backup and restore
+
+The app's backup holds `vudials.db`, `config.yaml` and `upload/`: API keys, dial names, easing and dial images. It contains secrets, so store it accordingly.
+
+Restore the app and Home Assistant from the same backup. Otherwise the key the integration has stored may not exist on the server, and the integration will ask you to re-authenticate.
+
+Upstream does not push stored images to the dials on start. After a restore, **Reset dial** on each dial's page in the Web UI re-sends its value, colour and image.
+
 ## Troubleshooting
 
 - The VU1 hub must be connected. If it is missing, the server retries every few seconds and recovers once the hub is plugged in.
+- A USB unplug is detected only on the next write to a dial. After three serial I/O errors the app restarts the server.
 - Turn on the app's **Watchdog** toggle to restart it automatically when its health check fails.
 - `s6-svwait: fatal: timed out` when the app stops while the hub is missing is expected.
 

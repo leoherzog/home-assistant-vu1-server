@@ -6,6 +6,7 @@
 - An empty `config.yaml`, or one with no `hostname:` key under `server:`, is replaced with upstream's default on start. Before, the server bound to `localhost` and the integration could not connect.
 - After repeated serial errors the server is force-killed if it has not exited 10 s after being told to stop.
 - The port description now warns that mapping `5340` gives your network admin access with a public key.
+- README: added a **Backup and restore** section, the location of upstream's unredacted log file, and a note on when a USB unplug is detected.
 - Releases now run the CI smoke test before publishing images, and the smoke test validates the nginx configuration.
 
 ## 0.7.0
