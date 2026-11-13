@@ -6,7 +6,7 @@ A Home Assistant app that runs [VU-Server](https://github.com/SasaKaranovic/VU-S
 
 1. In Home Assistant, go to **Settings** → **Apps** and click **Install app** in the bottom right corner.
 2. Open the three-dot menu, choose **Repositories**, and add `https://github.com/leoherzog/home-assistant-vu1-server`.
-3. Install **VU-Server** and start it. It is marked experimental, so it shows a warning badge.
+3. Install **VU-Server** and start it.
 
 For configuration, usage, security and troubleshooting, see the [app's README](vu-server-addon/README.md).
 

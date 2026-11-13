@@ -25,7 +25,7 @@ The Dockerfile fetches upstream by commit SHA. That SHA must equal the `vu-serve
 | `rootfs/etc/services.d/vu-server/finish` | Lets s6 restart the server, sleeping 3 s after a non-signal exit, because upstream exits 0 on every failure. |
 | `rootfs/etc/services.d/nginx/run` | Execs nginx. |
 | `rootfs/etc/nginx/nginx.conf` | Ingress on 8099, only from `172.30.32.2`. Proxies to `127.0.0.1:5340` and rewrites root-absolute URLs with `sub_filter`. Access log is off because query strings carry keys. |
-| `config.yaml` | `init: false`, `startup: services` so the app is up before Core sets up the integration, `ingress`, `uart`, optional `5340/tcp` mapping whose `ports_description` warns against mapping it, `log_level: list(debug\|info)` (upstream supports only these two), `stage: experimental` (the store shows an Experimental warning badge). |
+| `config.yaml` | `init: false`, `startup: services` so the app is up before Core sets up the integration, `ingress`, `uart`, optional `5340/tcp` mapping whose `ports_description` warns against mapping it, `log_level: list(debug\|info)` (upstream supports only these two). |
 | `apparmor.txt` | Broad file and network access (intentional), Docker's default deny rules, signal receive from `runc`/`crun` so stop delivers SIGTERM, and the capabilities nginx needs. |
 | `icon.png` | 128 px, rendered from `assets/icon.svg` in the integration repo with the command in its AGENTS.md. |
 | `translations/en.yaml`, `README.md`, `CHANGELOG.md` | Option labels and the port description (`network:`, which must match `ports_description`), store page and changelog. |

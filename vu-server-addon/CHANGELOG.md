@@ -9,6 +9,7 @@
 - README: added a **Backup and restore** section, the location of upstream's unredacted log file, and a note on when a USB unplug is detected.
 - Releases now run the CI smoke test before publishing images, and the smoke test validates the nginx configuration.
 - New icon, drawn from the front of a VU1 dial.
+- The app is no longer marked experimental.
 
 ## 0.7.0
 
