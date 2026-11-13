@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- An empty `config.yaml`, or one with no `hostname:` key under `server:`, is replaced with upstream's default on start. Before, the server bound to `localhost` and the integration could not connect.
+
 ## 0.7.0
 
 - Updated VU-Server to upstream commit `485df4e`.

@@ -4,7 +4,7 @@ Runs [VU-Server](https://github.com/SasaKaranovic/VU-Server) to control Streacom
 
 ## What the app changes
 
-The upstream source runs unmodified. On every start the app clears `server.hostname` in `/data/vu-server/config.yaml`, so the API listens on all interfaces and the integration can reach it. nginx rewrites a handful of absolute URLs so the Web UI works under ingress. Keys in logged request URLs are redacted.
+The upstream source runs unmodified. On every start the app clears `server.hostname` in `/data/vu-server/config.yaml`, so the API listens on all interfaces and the integration can reach it. If that file is empty or has lost the `hostname:` key under `server:`, the app replaces it with upstream's default. nginx rewrites a handful of absolute URLs so the Web UI works under ingress. Keys in logged request URLs are redacted.
 
 ## Configuration
 
