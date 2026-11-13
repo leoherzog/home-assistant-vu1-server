@@ -1,7 +1,8 @@
 #!/usr/bin/with-contenv bashio
 cd /opt/vu-server || exit 1
 # Tornado logs failed requests with their query strings, so redact keys before they reach the Supervisor log.
-# Upstream never reopens a failed serial port, so restart it after repeated EIO.
+# Upstream never reopens a failed serial port, so restart it after repeated EIO: SIGTERM, then SIGKILL 10 s later if its shutdown hangs.
+# The SIGKILL targets the signalled PID, so it cannot hit the instance s6 starts next.
 # awk ignores SIGTERM so the server's shutdown lines still reach the log during container stop.
 venv/bin/python server.py --logging "$(bashio::config log_level)" 2>&1 |
-  (trap '' TERM; exec awk '{ gsub(/key=[^&\047 )]*/, "key=REDACTED"); sub(/key: b[\047"].*/, "key: REDACTED"); print; fflush() } /\[Errno 5\]/ && ++n == 3 { system("pkill -f \"[s]erver.py\"") }')
+  (trap '' TERM; exec awk '{ gsub(/key=[^&\047 )]*/, "key=REDACTED"); sub(/key: b[\047"].*/, "key: REDACTED"); print; fflush() } /\[Errno 5\]/ && ++n == 3 { system("pid=$(pgrep -f \"[s]erver.py\") || exit; kill $pid; (sleep 10; kill -KILL $pid) >/dev/null 2>&1 &") }')
