@@ -4,3 +4,7 @@ configuration:
     description: >-
       VU-Server log verbosity: "info" (default) or "debug" for troubleshooting
       hub detection.
+network:
+  5340/tcp: >-
+    VU-Server API. The integration does not need it. Mapping it gives your
+    network admin access with a public key.

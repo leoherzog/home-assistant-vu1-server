@@ -2,8 +2,10 @@
 
 ## Unreleased
 
+- The app now starts before Home Assistant Core (`startup: services`), so the integration no longer fails its first setup on every boot.
 - An empty `config.yaml`, or one with no `hostname:` key under `server:`, is replaced with upstream's default on start. Before, the server bound to `localhost` and the integration could not connect.
 - After repeated serial errors the server is force-killed if it has not exited 10 s after being told to stop.
+- The port description now warns that mapping `5340` gives your network admin access with a public key.
 
 ## 0.7.0
 

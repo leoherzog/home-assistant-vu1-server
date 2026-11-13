@@ -10,10 +10,11 @@ arch:
   - aarch64
   - amd64
 init: false
+startup: services
 ports:
   "5340/tcp": null
 ports_description:
-  "5340/tcp": "VU-Server API port (configure host port in HA for external access)"
+  "5340/tcp": "VU-Server API. The integration does not need it. Mapping it gives your network admin access with a public key."
 ingress: true
 uart: true
 backup_exclude:
