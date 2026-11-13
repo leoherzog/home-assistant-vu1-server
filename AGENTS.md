@@ -37,7 +37,7 @@ The companion [home-assistant-vu1-devices](https://github.com/leoherzog/home-ass
 
 ## Lint and release
 
-CI checks the upstream pin and runs `frenck/action-app-linter` on `vu-server-addon`. A smoke job builds the amd64 image and starts it with `.github/fake-hub.py`, a pty hub with no dials, as entrypoint. It checks that another container reaches `:5340`, that logged keys are redacted, and that every nginx `sub_filter` pattern still occurs in upstream's Web UI. To run the linter locally:
+CI checks the upstream pin and runs `frenck/action-app-linter` on `vu-server-addon`. A smoke job builds the amd64 image and starts it with `.github/fake-hub.py`, a pty hub with no dials, as entrypoint. It checks that another container reaches `:5340`, that logged keys are redacted, that every nginx `sub_filter` pattern still occurs in upstream's Web UI, and that `nginx -t` passes. To run the linter locally:
 
 ```bash
 cd /tmp && git clone --depth 1 https://github.com/frenck/action-app-linter.git
@@ -48,4 +48,4 @@ sed 's|/config.schema.json|/tmp/config.schema.json|g' lint.py > lint_local.py
 INPUT_PATH="/path/to/vu-server-addon" INPUT_COMMUNITY="false" python lint_local.py
 ```
 
-`release.yml` runs when a GitHub release is published. It checks that the tag (without a leading `v`) equals `version:` in `config.yaml`, then builds amd64 and aarch64 with the `home-assistant/builder` actions and publishes `ghcr.io/leoherzog/vu-server-addon`. Update `CHANGELOG.md` with each version bump.
+`release.yml` runs when a GitHub release is published. It checks that the tag (without a leading `v`) equals `version:` in `config.yaml` and calls `main.yml` through `workflow_call`. Once both pass it builds amd64 and aarch64 with the `home-assistant/builder` actions, then publishes `ghcr.io/leoherzog/vu-server-addon`. Update `CHANGELOG.md` with each version bump.

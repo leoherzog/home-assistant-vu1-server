@@ -28,6 +28,10 @@ jobs:
           fi
           echo "version=${TAG}" >> "$GITHUB_OUTPUT"
 
+  ci:
+    name: CI
+    uses: ./.github/workflows/main.yml
+
   prepare:
     name: Prepare build matrix
     needs: verify
@@ -44,7 +48,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.arch }}
-    needs: [verify, prepare]
+    needs: [verify, ci, prepare]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read

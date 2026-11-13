@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 jobs:
   lint:
@@ -59,6 +60,9 @@ jobs:
           missing = [p for p in patterns if p not in www]
           print(len(patterns), "patterns, missing:", missing)
           raise SystemExit(bool(missing) or not patterns)'
+
+      - name: nginx config is valid
+        run: docker exec vu nginx -t
 
       - name: App log
         if: failure()
