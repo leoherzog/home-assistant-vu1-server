@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-rc1
 
 - The app now starts before Home Assistant Core (`startup: services`), so the integration no longer fails its first setup on every boot.
 - An empty `config.yaml`, or one with no `hostname:` key under `server:`, is replaced with upstream's default on start. Before, the server bound to `localhost` and the integration could not connect.
